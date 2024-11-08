@@ -1,5 +1,5 @@
 #pragma once
-#include "sphericalpoint.h"
+#include "erkir/geo/sphericalpoint.h"
 #include <string>
 
 namespace RouteParser {
