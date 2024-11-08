@@ -2,10 +2,20 @@
 
 using namespace RouteParser;
 
-std::optional<Waypoint> NavdataObject::FindWaypointByType(std::string icao, WaypointType type) {
+NavdataObject::NavdataObject()
+{
+  // Initialize with empty containers
+  waypoints = std::multimap<std::string, Waypoint>();
+  procedures = std::multimap<std::string, Procedure>();
+}
+
+std::optional<Waypoint> NavdataObject::FindWaypointByType(std::string icao, WaypointType type)
+{
   auto range = waypoints.equal_range(icao);
-  for (auto it = range.first; it != range.second; ++it) {
-    if (it->second.getType() == type) {
+  for (auto it = range.first; it != range.second; ++it)
+  {
+    if (it->second.getType() == type)
+    {
       return it->second;
     }
   }
@@ -13,20 +23,24 @@ std::optional<Waypoint> NavdataObject::FindWaypointByType(std::string icao, Wayp
 }
 
 std::optional<Waypoint> RouteParser::NavdataObject::FindClosestWaypointTo(
-    std::string nextWaypoint, std::optional<Waypoint> reference) {
+    std::string nextWaypoint, std::optional<Waypoint> reference)
+{
 
-  if (!reference.has_value()) {
+  if (!reference.has_value())
+  {
     FindWaypoint(nextWaypoint);
   }
 
   std::multimap<double, Waypoint> waypointsByDistance;
   auto range = waypoints.equal_range(nextWaypoint);
-  for (auto it = range.first; it != range.second; ++it) {
+  for (auto it = range.first; it != range.second; ++it)
+  {
     waypointsByDistance.insert(
         {reference->distanceToInMeters(it->second), it->second});
   }
 
-  if (waypointsByDistance.size() > 0) {
+  if (waypointsByDistance.size() > 0)
+  {
     // Multimaps are always sorted by key automatically
     return waypointsByDistance.begin()->second;
   }
@@ -35,9 +49,11 @@ std::optional<Waypoint> RouteParser::NavdataObject::FindClosestWaypointTo(
 }
 
 std::optional<Waypoint>
-RouteParser::NavdataObject::FindWaypoint(std::string identifier) {
+RouteParser::NavdataObject::FindWaypoint(std::string identifier)
+{
   auto range = waypoints.equal_range(identifier);
-  for (auto it = range.first; it != range.second; ++it) {
+  for (auto it = range.first; it != range.second; ++it)
+  {
     return it->second;
   }
   return std::nullopt;

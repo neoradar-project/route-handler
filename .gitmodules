@@ -7,3 +7,6 @@
 [submodule "extern/compile-time-regular-expressions"]
 	path = extern/compile-time-regular-expressions
 	url = https://github.com/hanickadot/compile-time-regular-expressions.git
+[submodule "extern/googletest"]
+	path = extern/googletest
+	url = https://github.com/google/googletest.git
