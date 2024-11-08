@@ -1,0 +1,9 @@
+[submodule "extern/erkir"]
+	path = extern/erkir
+	url = https://github.com/vahancho/erkir.git
+[submodule "extern/fmt"]
+	path = extern/fmt
+	url = https://github.com/fmtlib/fmt.git
+[submodule "extern/compile-time-regular-expressions"]
+	path = extern/compile-time-regular-expressions
+	url = https://github.com/hanickadot/compile-time-regular-expressions.git
