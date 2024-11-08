@@ -13,6 +13,11 @@ class NavdataObject {
 public:
   NavdataObject();
 
+  /**
+   * @brief Sets the waypoints and procedures.
+   * @param waypoints The waypoints to set.
+   * @param procedures The procedures to set.
+   */
   void SetWaypoints(std::multimap<std::string, Waypoint> waypoints,
                     std::multimap<std::string, Procedure> procedures) {
     this->waypoints = waypoints;
@@ -25,46 +30,30 @@ public:
   std::multimap<std::string, Waypoint> GetWaypoints() { return waypoints; }
   std::multimap<std::string, Procedure> GetProcedures() { return procedures; }
 
-  std::optional<Waypoint> FindAirport(std::string icao) {
-    auto range = waypoints.equal_range(icao);
-    for (auto it = range.first; it != range.second; ++it) {
-      if (it->second.getType() == WaypointType::AIRPORT) {
-        return it->second;
-      }
-    }
-    return std::nullopt;
-  }
+  /**
+   * @brief Finds an airport by its ICAO code.
+   * @param icao The ICAO code of the airport.
+   * @return An optional containing the airport if found, or an empty optional.
+   */
+  std::optional<Waypoint> FindWaypointByType(std::string icao, WaypointType type);
 
+  /**
+   * @brief Finds the closest waypoint to a given waypoint by distance.
+   * @param nextWaypoint The waypoint to find the closest to.
+   * @param reference The reference waypoint.
+   * @return An optional containing the closest waypoint if found, or an empty
+   * optional.
+   */
   std::optional<Waypoint>
   FindClosestWaypointTo(std::string nextWaypoint,
-                        std::optional<Waypoint> reference) {
+                        std::optional<Waypoint> reference);
 
-    if (!reference.has_value()) {
-      FindWaypoint(nextWaypoint);
-    }
-
-    std::multimap<double, Waypoint> waypointsByDistance;
-    auto range = waypoints.equal_range(nextWaypoint);
-    for (auto it = range.first; it != range.second; ++it) {
-      waypointsByDistance.insert(
-          {reference->distanceToInMeters(it->second), it->second});
-    }
-
-    if (waypointsByDistance.size() > 0) {
-      // Multimaps are always sorted by key automatically
-      return waypointsByDistance.begin()->second;
-    }
-
-    return std::nullopt;
-  }
-
-  std::optional<Waypoint> FindWaypoint(std::string identifier) {
-    auto range = waypoints.equal_range(identifier);
-    for (auto it = range.first; it != range.second; ++it) {
-      return it->second;
-    }
-    return std::nullopt;
-  }
+  /**
+   * @brief Finds a waypoint by its identifier.
+   * @param identifier The identifier of the waypoint.
+   * @return An optional containing the waypoint if found, or an empty optional.
+   */
+  std::optional<Waypoint> FindWaypoint(std::string identifier);
 
 private:
   std::multimap<std::string, Waypoint> waypoints;

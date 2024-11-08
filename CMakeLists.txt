@@ -17,6 +17,8 @@ add_subdirectory(extern/fmt)
 target_sources(route-handler
     PRIVATE
         src/RouteHandler.cpp
+        src/Navdata.cpp
+        src/Parser.cpp
 )
 
 target_include_directories(route-handler
