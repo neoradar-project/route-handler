@@ -5,13 +5,13 @@
 
 using namespace RouteParser;
 
-std::string Parser::CleanupRawRoute(std::string route) {
+std::string ParserHandler::CleanupRawRoute(std::string route) {
   route = Utils::removeChar(route, ':');
   route = Utils::trimAndReduceSpaces(route);
   return route;
 }
 
-void Parser::HandleFirstAndLastPart(ParsedRoute &parsedRoute, int index,
+void ParserHandler::HandleFirstAndLastPart(ParsedRoute &parsedRoute, int index,
                                     std::string token, std::string origin,
                                     std::string destination) {
   // Check for Sid and departure runway
@@ -35,7 +35,7 @@ void Parser::HandleFirstAndLastPart(ParsedRoute &parsedRoute, int index,
   }
 }
 
-void Parser::DoWaypointsCheck(ParsedRoute &parsedRoute, int index,
+void ParserHandler::DoWaypointsCheck(ParsedRoute &parsedRoute, int index,
                               std::string token,
                               std::optional<Waypoint> &previousWaypoint) {
   auto waypoint =
@@ -49,7 +49,7 @@ void Parser::DoWaypointsCheck(ParsedRoute &parsedRoute, int index,
   }
 }
 
-ParsedRoute Parser::ParseRawRoute(std::string route, std::string origin,
+ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
                                   std::string destination) {
   auto parsedRoute = ParsedRoute();
   parsedRoute.rawRoute = route;

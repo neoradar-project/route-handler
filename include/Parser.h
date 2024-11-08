@@ -7,7 +7,7 @@ namespace RouteParser {
  * @class Parser
  * @brief A class to parse and handle routes.
  */
-class Parser {
+class ParserHandler {
 private:
   /**
    * @brief Cleans up the raw route string.

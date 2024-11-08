@@ -12,10 +12,10 @@ using namespace RouteParser;
 
 class RouteHandler {
 public:
-  RouteHandler() { this->Parser = std::make_shared<RouteParser::Parser>(); }
+  RouteHandler() { this->Parser = std::make_shared<RouteParser::ParserHandler>(); }
   ~RouteHandler() { this->Parser.reset(); }
 
-  std::shared_ptr<Parser> GetParser();
+  std::shared_ptr<ParserHandler> GetParser();
   void Bootstrap(ILogger logFunc,
                  std::multimap<std::string, Waypoint> waypoints,
                  std::multimap<std::string, Procedure> procedures) {
@@ -27,6 +27,6 @@ public:
   };
 
 private:
-  std::shared_ptr<Parser> Parser = nullptr;
+  std::shared_ptr<ParserHandler> Parser = nullptr;
   bool isReady = false;
 };
