@@ -1,6 +1,3 @@
-[submodule "extern/erkir"]
-	path = extern/erkir
-	url = https://github.com/vahancho/erkir.git
 [submodule "extern/fmt"]
 	path = extern/fmt
 	url = https://github.com/fmtlib/fmt.git
