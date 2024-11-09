@@ -18,6 +18,7 @@ add_library(route-handler STATIC)
 
 add_subdirectory(extern/erkir)
 add_subdirectory(extern/fmt)
+add_subdirectory(extern/abseil-cpp)
 
 target_sources(route-handler
     PRIVATE
@@ -37,6 +38,7 @@ target_link_libraries(route-handler
     PUBLIC
         erkir
         fmt
+        absl::strings
 )
 
 install(TARGETS route-handler

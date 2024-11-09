@@ -38,6 +38,5 @@ jobs:
     needs: build
     steps:
       - name: run GMock
-        working-directory: ${{github.workspace}}/build
         # Execute gmock
-        run: ${{env.BUILD_TYPE}}/router-handler-tests
+        run: ${{github.workspace}}/build/${{env.BUILD_TYPE}}/router-handler-tests
