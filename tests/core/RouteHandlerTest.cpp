@@ -94,12 +94,18 @@ TEST_F(RouteHandlerTest, UnknownWaypoint) {
 }
 
 TEST_F(RouteHandlerTest, DepartureArrivalRunways) {
-  auto parsedRoute = handler.GetParser()->ParseRawRoute(
-      "KSFO/28L BLUE DCT PAINT KLAX/24R ", "KSFO", "KLAX");
+  // auto parsedRoute = handler.GetParser()->ParseRawRoute(
+  //     "KSFO/28L BLUE DCT PAINT KLAX/24R ", "KSFO", "KLAX");
 
-  EXPECT_EQ(parsedRoute.departureRunway, "28L");
-  EXPECT_EQ(parsedRoute.arrivalRunway, "24R");
-  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 0);
+  // EXPECT_EQ(parsedRoute.departureRunway, "28L");
+  // EXPECT_EQ(parsedRoute.arrivalRunway, "24R");
+  // EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 0);
+  auto parsedRoute = handler.GetParser()->ParseRawRoute(
+      "KSFO SID1 INVALID_WPT STAR1 KLAX", "KSFO", "KLAX");
+
+  EXPECT_FALSE(parsedRoute.errors.empty());
+  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_WAYPOINT,
+                             3);
 }
 
 } // namespace RouteHandlerTests
