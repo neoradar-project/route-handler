@@ -8,92 +8,120 @@
 #include <string>
 #include <vector>
 
-namespace RouteParser {
+namespace RouteParser
+{
 
-struct FoundProcedure {
-  std::optional<std::string> procedure;
-  std::optional<std::string> runway;
-  std::optional<RouteParser::Procedure> extractedProcedure;
-  std::vector<RouteParser::ParsingError> errors;
-};
+  struct FoundProcedure
+  {
+    std::optional<std::string> procedure;
+    std::optional<std::string> runway;
+    std::optional<RouteParser::Procedure> extractedProcedure;
+    std::vector<RouteParser::ParsingError> errors;
+  };
 
-class SidStarParser {
-public:
-  static std::optional<std::string> FindRunway(std::string token) {
-
-    if (token.find('/') != std::string::npos) {
-      auto parts = Utils::splitByChar(token, '/');
-      if (parts[1].size() == 2 || parts[1].size() == 3) {
-        return parts[1]; // Found a runway
+  class SidStarParser
+  {
+  public:
+    static std::optional<std::string> FindRunway(const std::string &token)
+    {
+      auto slashPos = token.find('/');
+      if (slashPos != std::string::npos)
+      {
+        auto parts = Utils::splitByChar(token, '/');
+        if (parts.size() > 1 && (parts[1].size() == 2 || parts[1].size() == 3))
+        {
+          return parts[1]; // Found a runway
+        }
       }
+      return std::nullopt;
     }
 
-    return std::nullopt;
-  }
+    static FoundProcedure FindProcedure(const std::string &token,
+                                        const std::string &icao,
+                                        ProcedureType type)
+    {
+      std::optional<std::string> runway = FindRunway(token);
+      std::string procedureToken = token;
 
-  static FoundProcedure FindProcedure(std::string token, std::string icao,
-                                      ProcedureType type) {
-    std::optional<std::string> runway = FindRunway(token);
-    if (runway.has_value()) {
-      token = Utils::splitByChar(token, '/')[0];
-    }
+      if (runway.has_value())
+      {
+        auto parts = Utils::splitByChar(token, '/');
+        if (!parts.empty())
+        {
+          procedureToken = parts[0];
+        }
+      }
 
-    if (token.length() == 4) {
-      // It's an ICAO code, not a SID, so return
-      return FoundProcedure{Utils::splitByChar(token, '/')[1], runway};
-    }
+      if (procedureToken.length() == 4)
+      {
+        // It's an ICAO code, not a SID, so return
+        auto parts = Utils::splitByChar(token, '/');
+        return FoundProcedure{
+            parts.size() > 1 ? std::optional<std::string>{parts[1]} : std::nullopt,
+            runway,
+            std::nullopt,
+            {}};
+      }
 
-    // Check if it's a procedure
-    std::vector<RouteParser::Procedure> matchingProcedures;
+      // Get a reference to the procedures container
+      const auto &procedures = NavdataContainer->GetProcedures();
 
-    if (NavdataContainer->GetProcedures().find(token) !=
-        NavdataContainer->GetProcedures().end()) {
-      auto procedures = NavdataContainer->GetProcedures().equal_range(token);
-      for (auto it = procedures.first; it != procedures.second; ++it) {
-        if (it->second.icao == icao && it->second.type == type) {
+      // Find matching procedures
+      std::vector<RouteParser::Procedure> matchingProcedures;
+
+      auto range = procedures.equal_range(procedureToken);
+      for (auto it = range.first; it != range.second; ++it)
+      {
+        if (it->second.icao == icao && it->second.type == type)
+        {
           matchingProcedures.push_back(it->second);
         }
       }
-    }
 
-    // We now check the matched procedures, and we will see if we can find a
-    // matching runway
-    if (matchingProcedures.size() == 0) {
-      // We didn't find any procedures, so we return whatever text we have with
-      // an info, this could be because we simply do not have this procedure in
-      // dataset
-      return FoundProcedure{
-          token,
-          runway,
-          std::nullopt,
-          {ParsingError{ParsingErrorType::UNKNOWN_PROCEDURE,
-                        fmt::format("No matching procedure found for {} at {}",
-                                    token, icao),
-                        0, token, ParsingErrorLevel::INFO}}};
-    }
-
-    // If we have a runway, we check for a match
-    if (runway.has_value()) {
-      for (auto &procedure : matchingProcedures) {
-        if (procedure.runway == runway) {
-          return FoundProcedure{token, runway, procedure};
-        }
+      // Handle case where no procedures were found
+      if (matchingProcedures.empty())
+      {
+        return FoundProcedure{
+            procedureToken,
+            runway,
+            std::nullopt,
+            {ParsingError{
+                ParsingErrorType::UNKNOWN_PROCEDURE,
+                fmt::format("No matching procedure found for {} at {}",
+                            procedureToken, icao),
+                0,
+                procedureToken,
+                ParsingErrorLevel::INFO}}};
       }
 
-      // We didn't find a matching runway, so we return the first procedure with
-      // an error
-      return FoundProcedure{
-          token,
-          runway,
-          matchingProcedures[0],
-          {ParsingError{ParsingErrorType::PROCEDURE_RUNWAY_MISMATCH,
-                        fmt::format("No matching runway {} found for {} at {}",
-                                    runway.value_or("N/A"), token, icao),
-                        0, token, ParsingErrorLevel::ERROR}}};
-    }
+      // If we have a runway, look for a matching procedure
+      if (runway.has_value())
+      {
+        for (const auto &procedure : matchingProcedures)
+        {
+          if (procedure.runway == runway)
+          {
+            return FoundProcedure{procedureToken, runway, procedure};
+          }
+        }
 
-    // If we don't have anything at all, we return the first token and hopefully a found runway
-    return FoundProcedure{token, runway};
-  }
-};
+        // No matching runway found, return first procedure with error
+        return FoundProcedure{
+            procedureToken,
+            runway,
+            matchingProcedures[0],
+            {ParsingError{
+                ParsingErrorType::PROCEDURE_RUNWAY_MISMATCH,
+                fmt::format("No matching runway {} found for {} at {}",
+                            runway.value_or("N/A"), procedureToken, icao),
+                0,
+                procedureToken,
+                ParsingErrorLevel::ERROR}}};
+      }
+
+      // Return first procedure if no runway specified
+      return FoundProcedure{procedureToken, runway};
+    }
+  };
+
 } // namespace RouteParser
