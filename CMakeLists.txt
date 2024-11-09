@@ -11,8 +11,12 @@ foreach(OUTPUT_CONFIG DEBUG RELEASE)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_${OUTPUT_CONFIG} ${CMAKE_BINARY_DIR}/${OUTPUT_CONFIG})
 endforeach()
 set(BUILD_SHARED_LIBS OFF)
-# Export compile commands for clangd
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE) 
+
+# Add this to make Abseil installation configs available
+set(ABSL_PROPAGATE_CXX_STD ON)
+set(ABSL_ENABLE_INSTALL ON)
 
 add_library(route-handler STATIC)
 
@@ -29,7 +33,7 @@ target_sources(route-handler
 
 target_include_directories(route-handler
     PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/extern/compile-time-regular-expressions/single-header>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/extern/compile-time-regular-expressions/single-header>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
@@ -41,23 +45,31 @@ target_link_libraries(route-handler
         absl::strings
 )
 
-install(TARGETS route-handler
-    EXPORT route-handler-config
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/config.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/route-handler-config.cmake
+    @ONLY
+)
+
+install(TARGETS route-handler erkir fmt
+    EXPORT route-handler-targets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
+    PUBLIC_HEADER DESTINATION include
 )
 
 install(DIRECTORY include/ DESTINATION include)
 
-export(EXPORT route-handler-config
-    FILE "${CMAKE_CURRENT_BINARY_DIR}/route-handler-config.cmake"
+install(EXPORT route-handler-targets
+    FILE route-handler-targets.cmake
     NAMESPACE route-handler::
+    DESTINATION lib/cmake/route-handler
 )
 
-install(EXPORT route-handler-config
-    FILE route-handler-config.cmake
-    NAMESPACE route-handler::
+# Install the config file
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/config.cmake
     DESTINATION lib/cmake/route-handler
 )
 
