@@ -1,28 +1,57 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <algorithm>
-#include <cctype>
-#include <sstream>
+#include "absl/strings/ascii.h"
+#include "absl/strings/str_replace.h"
+#include "types/ParsingError.h"
+#include "types/RouteWaypoint.h"
+#include <optional>
 #include <string>
-#include "absl/strings/str_join.h"
-#include "absl/strings/str_split.h"
 
-namespace Utils
-{
+namespace RouteParser {
 
-  // Split string by spaces
-  inline std::vector<std::string> splitBySpaces(const std::string &str)
-  {
-    return absl::StrSplit(str, ' ');
+namespace Utils {
+static std::string CleanupRawRoute(std::string route) {
+  route = absl::StrReplaceAll(route, {{":", " "}, {",", " "}});
+  route = absl::StripAsciiWhitespace(route);
+  return route;
+}
+
+static void InsertWaypointsAsRouteWaypoints(
+    std::vector<RouteParser::RouteWaypoint> &waypoints,
+    const std::vector<RouteParser::Waypoint> &parsedWaypoints) {
+  for (const auto &waypoint : parsedWaypoints) {
+    waypoints.push_back(RouteParser::RouteWaypoint(
+        waypoint.getType(), waypoint.getIdentifier(), waypoint.getPosition(),
+        waypoint.getFrequencyHz()));
   }
+}
 
-  // Split string by a specific character
-  inline std::vector<std::string> splitByChar(const std::string &str, char delimiter)
-  {
-    return absl::StrSplit(str, delimiter);
+static RouteParser::RouteWaypoint WaypointToRouteWaypoint(
+    RouteParser::Waypoint waypoint,
+    std::optional<RouteWaypoint::PlannedPosition> plannedPosition =
+        std::nullopt) {
+  return RouteParser::RouteWaypoint(
+      waypoint.getType(), waypoint.getIdentifier(), waypoint.getPosition(),
+      waypoint.getFrequencyHz(), plannedPosition);
+}
+
+static void
+InsertParsingErrorIfNotDuplicate(std::vector<ParsingError> &parsingErrors,
+                                 const ParsingError &error) {
+  auto it =
+      std::find_if(parsingErrors.begin(), parsingErrors.end(),
+                   [&error](const ParsingError &existingError) {
+                     return existingError.level == error.level &&
+                            existingError.message == error.message &&
+                            existingError.tokenIndex == error.tokenIndex &&
+                            existingError.token == error.token &&
+                            existingError.type == error.type;
+                   });
+  if (it == parsingErrors.end()) {
+    parsingErrors.push_back(error);
   }
-
+}
 } // namespace Utils
-
+} // namespace RouteParser
 #endif // UTILS_H

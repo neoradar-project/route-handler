@@ -17,16 +17,17 @@ private:
   std::string CleanupRawRoute(std::string route);
 
   /**
-   * @brief Handles the first and last parts of the parsed route.
+   * @brief Parses the first and last part of the route.
    * @param parsedRoute The parsed route object.
    * @param index The index of the current token.
    * @param token The current token being processed.
    * @param origin The origin of the route.
    * @param destination The destination of the route.
+   * @param strict Whether to parse strictly or not, meaning that it will reject
+   * if the found procedure is not in dataset
    */
-  void HandleFirstAndLastPart(ParsedRoute &parsedRoute, int index,
-                              std::string token, std::string origin,
-                              std::string destination);
+  bool ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
+                             std::string token, std::string anchorIcao, bool strict = false);
 
   /**
    * @brief Performs a waypoint check on the parsed route.
@@ -35,8 +36,8 @@ private:
    * @param token The current token being processed.
    * @param previousWaypoint The previous waypoint, if any.
    */
-  void DoWaypointsCheck(ParsedRoute &parsedRoute, int index, std::string token,
-                        std::optional<Waypoint> &previousWaypoint);
+  bool ParseWaypoints(ParsedRoute &parsedRoute, int index, std::string token,
+                      std::optional<Waypoint> &previousWaypoint);
 
 public:
   /**

@@ -2,105 +2,147 @@
 #include "Navdata.h"
 #include "SidStarParser.h"
 #include "Utils.h"
-#include "absl/strings/str_replace.h"
+#include "types/ParsedRoute.h"
 
 using namespace RouteParser;
 
-std::string ParserHandler::CleanupRawRoute(std::string route)
-{
-  route = absl::StrReplaceAll(route, {{"-", " "}});
-  route = absl::StripAsciiWhitespace(route);
-  return route;
-}
+bool ParserHandler::ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
+                                          std::string token,
+                                          std::string anchorIcao, bool strict) {
 
-void ParserHandler::HandleFirstAndLastPart(ParsedRoute &parsedRoute, int index,
-                                           std::string token,
-                                           std::string origin,
-                                           std::string destination)
-{
-  // Check for Sid and departure runway
-  auto res =
-      SidStarParser::FindProcedure(token, origin, index == 0 ? SID : STAR);
-  if (index == 0)
-  {
+  auto res = SidStarParser::FindProcedure(token, anchorIcao,
+                                          index == 0 ? SID : STAR, index);
+
+  if (res.errors.size() > 0) {
+    for (const auto &error : res.errors) {
+      // This function is called twice, once in strict mode and once in non strict mode
+      // We don't want to add the same error twice
+      Utils::InsertParsingErrorIfNotDuplicate(parsedRoute.errors, error);
+    }
+  }
+
+  if (!res.procedure && !res.runway && !res.extractedProcedure) {
+    return false; // We found nothing
+  }
+
+  if (strict && !res.extractedProcedure && !res.runway) {
+    return false; // In strict mode, we only accept procedures in dataset
+  }
+
+  if (res.procedure == anchorIcao && res.runway) {
+    if (index == 0) {
+      parsedRoute.departureRunway = res.runway;
+    } else {
+      parsedRoute.arrivalRunway = res.runway;
+    }
+    return true; // ICAO matching anchor (origin or destination) + runway,
+                 // always valid
+  }
+
+  if (index == 0) {
     parsedRoute.departureRunway = res.runway;
-    parsedRoute.SID = res.procedure;
-  }
-  else
-  {
+    parsedRoute.SID = strict && res.extractedProcedure
+                          ? res.extractedProcedure->name
+                          : res.procedure;
+  } else {
     parsedRoute.arrivalRunway = res.runway;
-    parsedRoute.STAR = res.procedure;
+    parsedRoute.STAR = strict && res.extractedProcedure
+                           ? res.extractedProcedure->name
+                           : res.procedure;
   }
-  if (res.errors.size() > 0)
-  {
-    parsedRoute.errors.insert(parsedRoute.errors.end(), res.errors.begin(),
-                              res.errors.end());
+
+  if (res.extractedProcedure) {
+    Utils::InsertWaypointsAsRouteWaypoints(parsedRoute.waypoints,
+                                           res.extractedProcedure->waypoints);
+    return true; // Parsed a procedure
   }
-  if (res.extractedProcedure.has_value())
-  {
-    parsedRoute.waypoints.insert(parsedRoute.waypoints.end(),
-                                 res.extractedProcedure->waypoints.begin(),
-                                 res.extractedProcedure->waypoints.end());
-  }
+
+  return !strict && (res.procedure || res.runway);
 }
 
-void ParserHandler::DoWaypointsCheck(
-    ParsedRoute &parsedRoute, int index, std::string token,
-    std::optional<Waypoint> &previousWaypoint)
-{
+bool ParserHandler::ParseWaypoints(ParsedRoute &parsedRoute, int index,
+                                   std::string token,
+                                   std::optional<Waypoint> &previousWaypoint) {
   auto waypoint =
       NavdataContainer->FindClosestWaypointTo(token, previousWaypoint);
-  if (waypoint.has_value())
-  {
-    parsedRoute.waypoints.push_back(waypoint.value());
+  if (waypoint.has_value()) {
+    parsedRoute.waypoints.push_back(
+        Utils::WaypointToRouteWaypoint(waypoint.value()));
     previousWaypoint = waypoint;
+    return true;
   }
-  else
-  {
-    parsedRoute.errors.push_back(
-        {UNKNOWN_WAYPOINT, "Unknown waypoint", index, token});
-  }
+
+  return false; // Not a waypoint
 }
 
 ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
-                                         std::string destination)
-{
+                                         std::string destination) {
   auto parsedRoute = ParsedRoute();
   parsedRoute.rawRoute = route;
 
-  route = CleanupRawRoute(route);
+  route = Utils::CleanupRawRoute(route);
 
-  if (route.empty())
-  {
-    parsedRoute.errors.push_back({ROUTE_EMPTY, "Route is empty", 0, ""});
+  if (route.empty()) {
+    parsedRoute.errors.push_back({ROUTE_EMPTY, "Route is empty", 0, "", ERROR});
     return parsedRoute;
   }
 
-  const auto routeParts = Utils::splitBySpaces(route);
+  const std::vector<std::string> routeParts = absl::StrSplit(route, ' ');
   parsedRoute.totalTokens = routeParts.size();
 
   auto previousWaypoint = NavdataContainer->FindWaypointByType(origin, AIRPORT);
 
-  for (auto i = 0; i < routeParts.size(); i++)
-  {
+  for (auto i = 0; i < routeParts.size(); i++) {
     const auto token = routeParts[i];
 
     if (token.empty() || token == origin || token == destination ||
-        token == "DCT" || token == " ")
-    {
+        token == " ") {
       parsedRoute.totalTokens--;
       continue;
     }
 
-    if (i == 0 || i == routeParts.size() - 1)
-    {
-      HandleFirstAndLastPart(parsedRoute, i, token, origin, destination);
+    if (token == "DCT" || token == "." || token == "..") {
+      continue; // These count as tokens but we don't need to do anything with
+                // them
     }
 
-    // Check for airways
+    if ((i == 0 || i == routeParts.size() - 1) &&
+        token.find("/") != std::string::npos) {
 
-    // Check for waypoints
-    this->DoWaypointsCheck(parsedRoute, i, token, previousWaypoint);
+      // If we're in the first and last part and there is a '/' in the token,
+      // we can assume it's a SID/STAR or runway, so we start with that, but
+      // in strict mode, meaning we will only accept something we have in
+      // dataset hence that we know for sure is a SID/STAR
+      if (this->ParseFirstAndLastPart(parsedRoute, i, token,
+                                      i == 0 ? origin : destination, true)) {
+        continue;
+      }
+    }
+    // We always first check if it's a waypoint directly
+    if (this->ParseWaypoints(parsedRoute, i, token, previousWaypoint)) {
+      continue; // Found a waypoint, so we can skip the rest
+    }
+
+    // We check if it's a LAT/LON coordinate
+
+    // TODO: Check for airways
+
+    if (i == 0 || i == routeParts.size() - 1) {
+      // If we're in the first and last part and we didn't find a waypoint or
+      // lat/lon, we can assume it's a SID/STAR or runway, but not in strict
+      // mode, meaning we will accept something that looks like a procedure but
+      // might not be one
+      // We assume it's not an airway, because an airway cannot be at the first
+      // or last part If it is, the flight plan is invalid
+      if (this->ParseFirstAndLastPart(parsedRoute, i, token,
+                                      i == 0 ? origin : destination, false)) {
+        continue;
+      }
+    }
+
+    // If we reach this point, we have an unknown token
+    parsedRoute.errors.push_back(
+        ParsingError{UNKNOWN_WAYPOINT, "Unknown waypoint", i, token});
   }
 
   return parsedRoute;

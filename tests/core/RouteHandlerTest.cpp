@@ -1,7 +1,10 @@
 #include "RouteHandler.h"
+#include "Helpers/RouteHandlerTestHelpers.cpp"
 #include "types/ParsedRoute.h"
-#include <algorithm>
+#include <fmt/color.h>
+#include <fmt/core.h>
 #include <gtest/gtest.h>
+#include <optional>
 
 using namespace RouteParser;
 
@@ -14,46 +17,6 @@ protected:
     // Any setup needed before each test
   }
 };
-
-void EXPECT_PARSE_ERROR_WITH_LEVEL(const ParsedRoute &parsedRoute,
-                                   ParsingErrorLevel level,
-                                   int expectedErrors) {
-  const auto errors = parsedRoute.errors;
-  const auto errorsWithLevel =
-      std::count_if(errors.begin(), errors.end(), [level](const auto &error) {
-        return error.level == level;
-      });
-
-  EXPECT_EQ(errorsWithLevel, expectedErrors);
-}
-
-void EXPECT_PARSE_ERROR_OF_TYPE(const ParsedRoute &parsedRoute,
-                                ParsingErrorType type, int expectedErrors) {
-  const auto errors = parsedRoute.errors;
-  const auto errorsOfType =
-      std::count_if(errors.begin(), errors.end(),
-                    [type](const auto &error) { return error.type == type; });
-
-  EXPECT_EQ(errorsOfType, expectedErrors);
-}
-
-void EXPECT_BASIC_ROUTE(ParsedRoute parsedRoute) {
-  EXPECT_TRUE(parsedRoute.waypoints.empty()); // We don't have a database so
-                                              // expecting no parsed waypoints
-
-  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::INFO, 9);
-  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 0);
-  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_WAYPOINT,
-                             7);
-  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_PROCEDURE,
-                             2);
-
-  EXPECT_EQ(parsedRoute.SID, "TES61X");
-  EXPECT_EQ(parsedRoute.departureRunway, "06");
-
-  EXPECT_EQ(parsedRoute.STAR, "ABBEY3A");
-  EXPECT_EQ(parsedRoute.arrivalRunway, "07R");
-}
 
 TEST_F(RouteHandlerTest, EmptyRoute) {
   auto parsedRoute = handler.GetParser()->ParseRawRoute("", "KSFO", "KLAX");
@@ -77,7 +40,7 @@ TEST_F(RouteHandlerTest, BasicRouteWithSIDAndSTAR) {
 
 TEST_F(RouteHandlerTest, RouteWithSpacesAndColons) {
   auto parsedRoute = handler.GetParser()->ParseRawRoute(
-      " TES61X/06 TESIG      A470 DOTMI  V512  :ABBEY ABBEY3A/07R", "ZSNJ",
+      " TES61X/06 TESIG      A470 DOTMI  V512 : :ABBEY ABBEY3A/07R  ", "ZSNJ",
       "VHHH");
 
   EXPECT_BASIC_ROUTE(parsedRoute);
@@ -85,6 +48,7 @@ TEST_F(RouteHandlerTest, RouteWithSpacesAndColons) {
 }
 
 TEST_F(RouteHandlerTest, UnknownWaypoint) {
+  // TODO: add database to check against actual invalid waypoints
   auto parsedRoute = handler.GetParser()->ParseRawRoute(
       "KSFO SID1 INVALID_WPT STAR1 KLAX", "KSFO", "KLAX");
 
@@ -100,6 +64,17 @@ TEST_F(RouteHandlerTest, DepartureArrivalRunways) {
   EXPECT_EQ(parsedRoute.departureRunway, "28L");
   EXPECT_EQ(parsedRoute.arrivalRunway, "24R");
   EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 0);
+  EXPECT_EQ(parsedRoute.totalTokens, 5);
+}
+
+TEST_F(RouteHandlerTest, DepartureArrivalRunwaysWithMismatchingICAO) {
+  auto parsedRoute = handler.GetParser()->ParseRawRoute(
+      "KSFO/28L BLUE DCT PAINT KLAX/24R ", "RJTT", "LFPO");
+
+  EXPECT_EQ(parsedRoute.departureRunway, std::nullopt);
+  EXPECT_EQ(parsedRoute.arrivalRunway, std::nullopt);
+  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 2);
+  EXPECT_EQ(parsedRoute.totalTokens, 5);
 }
 
 } // namespace RouteHandlerTests

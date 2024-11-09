@@ -16,12 +16,12 @@ public:
     this->position = position;
     this->frequencyHz = frequencyHz;
   }
-  WaypointType getType() { return type; };
-  std::string getIdentifier() { return identifier; };
-  erkir::spherical::Point getPosition() { return position; };
-  int getFrequencyHz() { return frequencyHz; };
+  WaypointType getType() const { return type; };
+  std::string getIdentifier() const { return identifier; };
+  erkir::spherical::Point getPosition() const { return position; };
+  int getFrequencyHz() const { return frequencyHz; };
 
-  double distanceToInMeters(Waypoint other) {
+  double distanceToInMeters(Waypoint other) const {
     return this->position.distanceTo(other.getPosition());
   }
 
