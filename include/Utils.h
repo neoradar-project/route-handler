@@ -27,11 +27,13 @@ inline std::string trim(const std::string &str) {
 inline std::string reduceSpaces(const std::string &str) {
   std::istringstream iss(str);
   std::string result, word;
+  bool firstWord = true;
   while (iss >> word) {
-    if (!result.empty()) {
+    if (!firstWord) {
       result += " ";
     }
     result += word;
+    firstWord = false;
   }
   return result;
 }
