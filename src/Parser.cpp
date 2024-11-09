@@ -86,8 +86,9 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
     const auto token = routeParts[i];
 
     if (token.empty() || token == origin || token == destination ||
-        token == "DCT")
+        token == "DCT" || token == " ")
     {
+      parsedRoute.totalTokens--;
       continue;
     }
 
