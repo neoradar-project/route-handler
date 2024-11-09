@@ -2,13 +2,14 @@
 #include "Navdata.h"
 #include "SidStarParser.h"
 #include "Utils.h"
-#include <iostream>
+#include "absl/strings/str_replace.h"
+
 using namespace RouteParser;
 
 std::string ParserHandler::CleanupRawRoute(std::string route)
 {
-  route = Utils::removeChar(route, ':');
-  route = Utils::trimAndReduceSpaces(route);
+  route = absl::StrReplaceAll(route, {{"-", " "}});
+  route = absl::StripAsciiWhitespace(route);
   return route;
 }
 
