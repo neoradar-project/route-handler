@@ -12,8 +12,9 @@ std::string ParserHandler::CleanupRawRoute(std::string route) {
 }
 
 void ParserHandler::HandleFirstAndLastPart(ParsedRoute &parsedRoute, int index,
-                                    std::string token, std::string origin,
-                                    std::string destination) {
+                                           std::string token,
+                                           std::string origin,
+                                           std::string destination) {
   // Check for Sid and departure runway
   auto res =
       SidStarParser::FindProcedure(token, origin, index == 0 ? SID : STAR);
@@ -35,9 +36,9 @@ void ParserHandler::HandleFirstAndLastPart(ParsedRoute &parsedRoute, int index,
   }
 }
 
-void ParserHandler::DoWaypointsCheck(ParsedRoute &parsedRoute, int index,
-                              std::string token,
-                              std::optional<Waypoint> &previousWaypoint) {
+void ParserHandler::DoWaypointsCheck(
+    ParsedRoute &parsedRoute, int index, std::string token,
+    std::optional<Waypoint> &previousWaypoint) {
   auto waypoint =
       NavdataContainer->FindClosestWaypointTo(token, previousWaypoint);
   if (waypoint.has_value()) {
@@ -50,7 +51,7 @@ void ParserHandler::DoWaypointsCheck(ParsedRoute &parsedRoute, int index,
 }
 
 ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
-                                  std::string destination) {
+                                         std::string destination) {
   auto parsedRoute = ParsedRoute();
   parsedRoute.rawRoute = route;
 
@@ -69,7 +70,8 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
   for (auto i = 0; i < routeParts.size(); i++) {
     const auto token = routeParts[i];
 
-    if (token.empty() || token == origin || token == destination) {
+    if (token.empty() || token == origin || token == destination ||
+        token == "DCT") {
       continue;
     }
 

@@ -41,10 +41,12 @@ void EXPECT_BASIC_ROUTE(ParsedRoute parsedRoute) {
   EXPECT_TRUE(parsedRoute.waypoints.empty()); // We don't have a database so
                                               // expecting no parsed waypoints
 
-  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, INFO, 9);
-  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ERROR, 0);
-  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, UNKNOWN_WAYPOINT, 7);
-  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, UNKNOWN_PROCEDURE, 2);
+  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::INFO, 9);
+  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 0);
+  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_WAYPOINT,
+                             7);
+  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_PROCEDURE,
+                             2);
 
   EXPECT_EQ(parsedRoute.SID, "TES61X");
   EXPECT_EQ(parsedRoute.departureRunway, "06");
@@ -57,9 +59,9 @@ TEST_F(RouteHandlerTest, EmptyRoute) {
   auto parsedRoute = handler.GetParser()->ParseRawRoute("", "KSFO", "KLAX");
 
   EXPECT_TRUE(parsedRoute.waypoints.empty());
-  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, RouteParser::ROUTE_EMPTY, 1);
+  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::ROUTE_EMPTY, 1);
 
-  EXPECT_EQ(parsedRoute.errors[0].type, ROUTE_EMPTY);
+  EXPECT_EQ(parsedRoute.errors[0].type, ParsingErrorType::ROUTE_EMPTY);
   EXPECT_EQ(parsedRoute.totalTokens, 0);
 }
 
@@ -87,16 +89,17 @@ TEST_F(RouteHandlerTest, UnknownWaypoint) {
       "KSFO SID1 INVALID_WPT STAR1 KLAX", "KSFO", "KLAX");
 
   EXPECT_FALSE(parsedRoute.errors.empty());
-  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, RouteParser::UNKNOWN_WAYPOINT, 3);
+  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_WAYPOINT,
+                             3);
 }
 
 TEST_F(RouteHandlerTest, DepartureArrivalRunways) {
   auto parsedRoute = handler.GetParser()->ParseRawRoute(
-      "KSFO/28L PAINT KMAE KLAX/24R ", "KSFO", "KLAX");
+      "KSFO/28L BLUE DCT PAINT KLAX/24R ", "KSFO", "KLAX");
 
   EXPECT_EQ(parsedRoute.departureRunway, "28L");
   EXPECT_EQ(parsedRoute.arrivalRunway, "24R");
-  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ERROR, 0);
+  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 0);
 }
 
 } // namespace RouteHandlerTests
