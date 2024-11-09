@@ -33,10 +33,6 @@ jobs:
       - name: Build
         run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
-  test:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: run GMock
-        # Execute gmock
-        run: ${{github.workspace}}/build/${{env.BUILD_TYPE}}/router-handler-tests
+      - name: Run Tests
+        working-directory: ${{github.workspace}}/build
+        run: ./RELEASE/router-handler-tests
