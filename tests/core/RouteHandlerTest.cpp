@@ -95,7 +95,7 @@ TEST_F(RouteHandlerTest, UnknownWaypoint) {
 
 TEST_F(RouteHandlerTest, DepartureArrivalRunways) {
   auto parsedRoute = handler.GetParser()->ParseRawRoute(
-      "BLUE DCT PAINT KLAX/24R ", "KSFO", "KLAX");
+      "BLUE DCT PAINT KLAX/24R", "KSFO", "KLAX");
 
   EXPECT_EQ(parsedRoute.departureRunway, "28L");
   EXPECT_EQ(parsedRoute.arrivalRunway, "24R");
