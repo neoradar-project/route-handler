@@ -1,8 +1,12 @@
 #include "Parser.h"
+#include "Log.h"
 #include "Navdata.h"
 #include "SidStarParser.h"
 #include "Utils.h"
+#include "absl/strings/str_split.h"
 #include "types/ParsedRoute.h"
+#include "types/RouteWaypoint.h"
+#include <optional>
 
 using namespace RouteParser;
 
@@ -15,8 +19,8 @@ bool ParserHandler::ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
 
   if (res.errors.size() > 0) {
     for (const auto &error : res.errors) {
-      // This function is called twice, once in strict mode and once in non strict mode
-      // We don't want to add the same error twice
+      // This function is called twice, once in strict mode and once in non
+      // strict mode We don't want to add the same error twice
       Utils::InsertParsingErrorIfNotDuplicate(parsedRoute.errors, error);
     }
   }
@@ -63,16 +67,71 @@ bool ParserHandler::ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
 bool ParserHandler::ParseWaypoints(ParsedRoute &parsedRoute, int index,
                                    std::string token,
                                    std::optional<Waypoint> &previousWaypoint) {
+  const std::vector<std::string> parts = absl::StrSplit(token, '/');
+  std::optional<RouteWaypoint::PlannedAltitudeAndSpeed> plannedAltAndSpd =
+      std::nullopt;
+  token = parts[0];
+
   auto waypoint =
       NavdataContainer->FindClosestWaypointTo(token, previousWaypoint);
-  if (waypoint.has_value()) {
+  if (waypoint) {
+    if (parts.size() > 1) {
+      plannedAltAndSpd = this->ParsePlannedAltitudeAndSpeed(index, parts[1]);
+      if (!plannedAltAndSpd) {
+        // Misformed second part of waypoint data
+        parsedRoute.errors.push_back({INVALID_DATA,
+                                      "Invalid planned TAS and Altitude", index,
+                                      token + '/' + parts[1], INFO});
+      }
+    }
     parsedRoute.waypoints.push_back(
-        Utils::WaypointToRouteWaypoint(waypoint.value()));
+        Utils::WaypointToRouteWaypoint(waypoint.value(), plannedAltAndSpd));
     previousWaypoint = waypoint;
     return true;
   }
 
   return false; // Not a waypoint
+}
+
+std::optional<RouteWaypoint::PlannedAltitudeAndSpeed>
+ParserHandler::ParsePlannedAltitudeAndSpeed(int index, std::string rightToken) {
+  // Example is WAYPOINT/N0490F370 (knots) or WAYPOINT/M083F360 (mach) or
+  // WAYPOINT/K0880F360 (kmh) For alt F370 is FL feet, S0150 is 1500 meters,
+  // A055 is alt 5500, M0610 is alt 6100 meters For speed, K0880 is 880 km/h,
+  // M083 is mach 0.83, S0150 is 150 knots
+  auto match = ctre::match<RouteParser::Regexes::RoutePlannedAltitudeAndSpeed>(
+      rightToken);
+  if (!match) {
+    return std::nullopt;
+  }
+
+  try {
+    const std::string extractedSpeedUnit = match.get<1>().to_string();
+    const int extractedSpeed = match.get<2>().to_number();
+    const std::string extractedAltitudeUnit = match.get<3>().to_string();
+    const int extractedAltitude = match.get<4>().to_number();
+
+    Units::Distance altitudeUnit = Units::Distance::FEET;
+    if (extractedAltitudeUnit == "M" || extractedAltitudeUnit == "S") {
+      altitudeUnit =
+          Units::Distance::METERS; // Todo: distinguish between FL and Alt
+    }
+
+    Units::Speed speedUnit = Units::Speed::KNOTS;
+    if (extractedSpeedUnit == "M") {
+      speedUnit = Units::Speed::MACH;
+    } else if (extractedSpeedUnit == "K") {
+      speedUnit = Units::Speed::KMH;
+    }
+
+    return RouteWaypoint::PlannedAltitudeAndSpeed{
+        extractedAltitude, extractedSpeed, altitudeUnit, speedUnit};
+  } catch (const std::exception &e) {
+    Log::error("Error trying to parse planned speed and altitude {}", e.what());
+    return std::nullopt;
+  }
+
+  return std::nullopt;
 }
 
 ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
@@ -106,6 +165,15 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
                 // them
     }
 
+    if (i == 0) {
+      // Sometimes, the flightplan is prefixed with the TAS and planned level.
+      // If that's the case, we'll ignore it as it should be specified elsewhere
+      // in the flightplan
+      if (this->ParsePlannedAltitudeAndSpeed(i, token)) {
+        continue;
+      }
+    }
+
     if ((i == 0 || i == routeParts.size() - 1) &&
         token.find("/") != std::string::npos) {
 
@@ -131,7 +199,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
       // If we're in the first and last part and we didn't find a waypoint or
       // lat/lon, we can assume it's a SID/STAR or runway, but not in strict
       // mode, meaning we will accept something that looks like a procedure but
-      // might not be one
+      // might not be in database
       // We assume it's not an airway, because an airway cannot be at the first
       // or last part If it is, the flight plan is invalid
       if (this->ParseFirstAndLastPart(parsedRoute, i, token,

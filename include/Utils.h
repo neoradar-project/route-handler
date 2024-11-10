@@ -29,7 +29,7 @@ static void InsertWaypointsAsRouteWaypoints(
 
 static RouteParser::RouteWaypoint WaypointToRouteWaypoint(
     RouteParser::Waypoint waypoint,
-    std::optional<RouteWaypoint::PlannedPosition> plannedPosition =
+    std::optional<RouteWaypoint::PlannedAltitudeAndSpeed> plannedPosition =
         std::nullopt) {
   return RouteParser::RouteWaypoint(
       waypoint.getType(), waypoint.getIdentifier(), waypoint.getPosition(),

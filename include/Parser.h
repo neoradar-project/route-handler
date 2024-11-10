@@ -1,5 +1,9 @@
+#include "Regexes.h"
 #include "types/ParsedRoute.h"
+#include "types/RouteWaypoint.h"
+#include "types/Waypoint.h"
 #include <string>
+
 
 namespace RouteParser {
 
@@ -27,7 +31,8 @@ private:
    * if the found procedure is not in dataset
    */
   bool ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
-                             std::string token, std::string anchorIcao, bool strict = false);
+                             std::string token, std::string anchorIcao,
+                             bool strict = false);
 
   /**
    * @brief Performs a waypoint check on the parsed route.
@@ -38,6 +43,12 @@ private:
    */
   bool ParseWaypoints(ParsedRoute &parsedRoute, int index, std::string token,
                       std::optional<Waypoint> &previousWaypoint);
+
+  // 57N020W 59S030E 60N040W for no minutes, or 5220N03305E for minutes
+  bool ParseLatLon(ParsedRoute &parsedRoute, int index, std::string token);
+
+  std::optional<RouteWaypoint::PlannedAltitudeAndSpeed>
+  ParsePlannedAltitudeAndSpeed(int index, std::string rightToken);
 
 public:
   /**

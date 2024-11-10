@@ -34,34 +34,16 @@ public:
                                       const std::string &icao,
                                       ProcedureType type, int tokenIndex) {
     std::optional<std::string> runway = FindRunway(token);
-    std::string procedureToken = token;
+    const std::vector<std::string> parts = absl::StrSplit(token, '/');
+    std::string procedureToken =
+        runway ? parts[0] : token; // If we have a runway, we know that the
+                                   // string is split in at least 2 parts
 
-    if (runway.has_value()) {
-      const std::vector<std::string> parts = absl::StrSplit(token, '/');
-      if (!parts.empty()) {
-        procedureToken = parts[0];
-      } else {
-        // Something weird occured, because we would have only found a runway if
-        // the token contained a '/'
-        return FoundProcedure{
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            {ParsingError{
-                ParsingErrorType::INVALID_RUNWAY,
-                fmt::format("Misformed or invalid runway found for {} at {}",
-                            token, icao),
-                tokenIndex, token, ParsingErrorLevel::ERROR}}};
-      }
-    }
-
-    if (procedureToken.length() == 4 && runway.has_value()) {
-      // It's an ICAO code, most likely, and it needs to match the anchor ICAO
+    if (runway && procedureToken.length() == 4) {
       if (procedureToken == icao) {
-        // We have a matching ICAO code and a runway
+        // Found a valid ICAO + runway combination matching dep or dest
         return FoundProcedure{procedureToken, runway, std::nullopt, {}};
       } else {
-        // We have a runway, but the ICAO code doesn't match the anchor ICAO
         return FoundProcedure{
             std::nullopt,
             std::nullopt,
@@ -74,20 +56,16 @@ public:
       }
     }
 
-    // Get a reference to the procedures container
     const auto &procedures = NavdataContainer->GetProcedures();
-
-    // Find matching procedures
     std::vector<RouteParser::Procedure> matchingProcedures;
 
-    auto range = procedures.equal_range(procedureToken);
-    for (auto it = range.first; it != range.second; ++it) {
-      if (it->second.icao == icao && it->second.type == type) {
-        matchingProcedures.push_back(it->second);
+    for (auto it = procedures.equal_range(procedureToken);
+         it.first != it.second; ++it.first) {
+      if (it.first->second.icao == icao && it.first->second.type == type) {
+        matchingProcedures.push_back(it.first->second);
       }
     }
 
-    // Handle case where no procedures were found
     if (matchingProcedures.empty()) {
       return FoundProcedure{
           procedureToken,
@@ -100,28 +78,29 @@ public:
                         tokenIndex, procedureToken, ParsingErrorLevel::INFO}}};
     }
 
-    // If we have a runway, look for a matching procedure
-    if (runway.has_value()) {
+    if (runway) {
       for (const auto &procedure : matchingProcedures) {
         if (procedure.runway == runway) {
+          // Full, valid match for procedure + runway
           return FoundProcedure{procedureToken, runway, procedure};
         }
       }
 
-      // No matching runway found, return first procedure with error
+      // No matching runway found for procedure, return first matching procedure
       return FoundProcedure{
           procedureToken,
           runway,
           matchingProcedures[0],
           {ParsingError{
               ParsingErrorType::PROCEDURE_RUNWAY_MISMATCH,
-              fmt::format("No matching runway {} found for procedure {} at {}",
+              fmt::format("No matching runway {} found for procedure {} at {}, "
+                          "returning first matching procedure",
                           runway.value_or("N/A"), procedureToken, icao),
               tokenIndex, procedureToken, ParsingErrorLevel::ERROR}}};
     }
 
-    // Return first procedure if no runway specified
-    return FoundProcedure{procedureToken, runway};
+    // No runway found, return first matching procedure
+    return FoundProcedure{procedureToken, runway, matchingProcedures[0]};
   }
 };
 

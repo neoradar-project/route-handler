@@ -16,7 +16,8 @@ namespace RouteParser
         PROCEDURE_RUNWAY_MISMATCH,
         UNKNOWN_PROCEDURE,
         UNKNOWN_WAYPOINT,
-        INVALID_RUNWAY
+        INVALID_RUNWAY,
+        INVALID_DATA
     };
 
     struct ParsingError

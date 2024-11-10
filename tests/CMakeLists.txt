@@ -5,7 +5,8 @@ enable_testing()
 
 # CORE TESTS
 set(test_core
-    core/RouteHandlerTest.cpp  
+    core/RouteHandlerTest.cpp
+    core/RouteHandlerPerformanceTest.cpp
 )
 
 # Configure Google Test
