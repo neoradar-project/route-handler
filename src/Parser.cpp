@@ -4,9 +4,12 @@
 #include "SidStarParser.h"
 #include "Utils.h"
 #include "absl/strings/str_split.h"
+#include "erkir/geo/sphericalpoint.h"
 #include "types/ParsedRoute.h"
 #include "types/RouteWaypoint.h"
+#include "types/Waypoint.h"
 #include <optional>
+#include <vector>
 
 using namespace RouteParser;
 
@@ -82,9 +85,9 @@ bool ParserHandler::ParseWaypoints(ParsedRoute &parsedRoute, int index,
       plannedAltAndSpd = this->ParsePlannedAltitudeAndSpeed(index, parts[1]);
       if (!plannedAltAndSpd) {
         // Misformed second part of waypoint data
-        parsedRoute.errors.push_back({INVALID_DATA,
-                                      "Invalid planned TAS and Altitude", index,
-                                      token + '/' + parts[1], INFO});
+        parsedRoute.errors.push_back(
+            {INVALID_DATA, "Invalid planned TAS and Altitude, ignoring it.",
+             index, token + '/' + parts[1], ERROR});
       }
     }
     parsedRoute.waypoints.push_back(Utils::WaypointToRouteWaypoint(
@@ -205,6 +208,10 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
     }
 
     // We check if it's a LAT/LON coordinate
+    if (this->ParseLatLon(parsedRoute, i, token, previousWaypoint,
+                          currentFlightRule)) {
+      continue;
+    }
 
     // TODO: Check for airways
 
@@ -229,6 +236,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
 
   return parsedRoute;
 }
+
 bool RouteParser::ParserHandler::ParseFlightRule(FlightRule &currentFlightRule,
                                                  int index, std::string token) {
   if (token == "IFR") {
@@ -240,3 +248,64 @@ bool RouteParser::ParserHandler::ParseFlightRule(FlightRule &currentFlightRule,
   }
   return false;
 }
+
+bool RouteParser::ParserHandler::ParseLatLon(
+    ParsedRoute &parsedRoute, int index, std::string token,
+    std::optional<Waypoint> &previousWaypoint, FlightRule currentFlightRule) {
+  const std::vector<std::string> parts = absl::StrSplit(token, '/');
+  token = parts[0];
+  auto match = ctre::match<RouteParser::Regexes::RouteLatLon>(token);
+  if (!match) {
+    return false;
+  }
+
+  try {
+    const auto latDegrees = match.get<1>().to_number();
+    const auto latMinutes = match.get<2>().to_optional_number();
+    const auto latCardinal = match.get<3>().to_string();
+
+    const auto lonDegrees = match.get<4>().to_number();
+    const auto lonMinutes = match.get<5>().to_optional_number();
+    const auto lonCardinal = match.get<6>().to_string();
+
+    if (latDegrees > 90 || lonDegrees > 180) {
+      parsedRoute.errors.push_back(
+          {INVALID_DATA, "Invalid lat/lon coordinate", index, token, ERROR});
+      return false;
+    }
+
+    double decimalDegreesLat = latDegrees + (latMinutes.value_or(0) / 60.0);
+    double decimalDegreesLon = lonDegrees + (lonMinutes.value_or(0) / 60.0);
+    if (latCardinal == "S") {
+      decimalDegreesLat *= -1;
+    }
+    if (lonCardinal == "W") {
+      decimalDegreesLon *= -1;
+    }
+    erkir::spherical::Point point(decimalDegreesLat, decimalDegreesLon);
+    const Waypoint waypoint = Waypoint{LATLON, token, point, LATLON};
+
+    std::optional<RouteWaypoint::PlannedAltitudeAndSpeed> plannedAltAndSpd =
+        std::nullopt;
+    if (parts.size() > 1) {
+      plannedAltAndSpd = this->ParsePlannedAltitudeAndSpeed(index, parts[1]);
+      if (!plannedAltAndSpd) {
+        // Misformed second part of waypoint data
+        parsedRoute.errors.push_back(
+            {INVALID_DATA, "Invalid planned TAS and Altitude, ignoring it.",
+             index, token + '/' + parts[1], ERROR});
+      }
+    }
+    parsedRoute.waypoints.push_back(Utils::WaypointToRouteWaypoint(
+        waypoint, currentFlightRule, plannedAltAndSpd));
+    previousWaypoint = waypoint; // Update the previous waypoint
+    return true;
+  } catch (const std::exception &e) {
+    parsedRoute.errors.push_back(
+        {INVALID_DATA, "Invalid lat/lon coordinate", index, token, ERROR});
+    Log::error("Error trying to parse lat/lon ({}): {}", token, e.what());
+    return false;
+  }
+
+  return false;
+};

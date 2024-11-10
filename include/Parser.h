@@ -31,7 +31,8 @@ private:
    */
   bool ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
                              std::string token, std::string anchorIcao,
-                             bool strict = false, FlightRule currentFlightRule = IFR);
+                             bool strict = false,
+                             FlightRule currentFlightRule = IFR);
   /**
    * @brief Performs a waypoint check on the parsed route.
    * @param parsedRoute The parsed route object.
@@ -45,6 +46,7 @@ private:
 
   // 57N020W 59S030E 60N040W for no minutes, or 5220N03305E for minutes
   bool ParseLatLon(ParsedRoute &parsedRoute, int index, std::string token,
+                   std::optional<Waypoint> &previousWaypoint,
                    FlightRule currentFlightRule);
 
   std::optional<RouteWaypoint::PlannedAltitudeAndSpeed>

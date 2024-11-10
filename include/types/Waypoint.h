@@ -4,7 +4,7 @@
 
 namespace RouteParser {
 
-enum WaypointType { FIX, VOR, DME, TACAN, NDB, AIRPORT };
+enum WaypointType { FIX, VOR, DME, TACAN, NDB, AIRPORT, LATLON };
 
 class Waypoint {
 public:
