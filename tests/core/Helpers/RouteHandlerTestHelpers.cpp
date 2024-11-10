@@ -63,13 +63,10 @@ static void EXPECT_PARSE_ERROR_OF_TYPE(const ParsedRoute &parsedRoute,
 }
 
 static void EXPECT_BASIC_ROUTE(ParsedRoute parsedRoute) {
-  EXPECT_TRUE(parsedRoute.waypoints.empty()); // We don't have a database so
-                                              // expecting no parsed waypoints
-
-  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::INFO, 7);
+  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::INFO, 4);
   EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 0);
   EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_WAYPOINT,
-                             5);
+                             2);
   EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_PROCEDURE,
                              2);
 

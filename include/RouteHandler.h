@@ -20,7 +20,7 @@ public:
                  std::multimap<std::string, Waypoint> waypoints,
                  std::multimap<std::string, Procedure> procedures) {
     Log::SetLogger(logFunc);
-    NavdataContainer->SetWaypoints(waypoints, procedures);
+    NavdataObject::SetWaypoints(waypoints, procedures);
 
     Log::info("RouteHandler is ready.");
     this->isReady = true;

@@ -7,6 +7,7 @@ enable_testing()
 set(test_core
     core/RouteHandlerTest.cpp
     core/RouteHandlerPerformanceTest.cpp
+    core/Data/SampleNavdata.cpp
 )
 
 # Configure Google Test

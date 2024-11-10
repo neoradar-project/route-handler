@@ -56,7 +56,7 @@ public:
       }
     }
 
-    const auto &procedures = NavdataContainer->GetProcedures();
+    const auto &procedures = NavdataObject::GetProcedures();
     std::vector<RouteParser::Procedure> matchingProcedures;
 
     for (auto it = procedures.equal_range(procedureToken);

@@ -30,6 +30,8 @@ public:
     return plannedPosition;
   }
 
+  FlightRule GetFlightRule() const { return flightRule; }
+
 private:
   std::optional<PlannedAltitudeAndSpeed> plannedPosition = std::nullopt;
   FlightRule flightRule = IFR;

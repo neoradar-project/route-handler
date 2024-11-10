@@ -1,6 +1,8 @@
 #include "RouteHandler.h"
+#include "Data/SampleNavdata.cpp"
 #include "Helpers/RouteHandlerTestHelpers.cpp"
 #include "types/ParsedRoute.h"
+#include "types/Waypoint.h"
 #include <fmt/color.h>
 #include <fmt/core.h>
 #include <gtest/gtest.h>
@@ -14,7 +16,14 @@ protected:
   RouteHandler handler;
 
   void SetUp() override {
+    handler = RouteHandler();
     // Any setup needed before each test
+    const std::function<void(const char *, const char *)> logFunc =
+        [](const char *msg, const char *level) {
+          // fmt::print(fg(fmt::color::yellow), "[{}] {}\n", level, msg);
+          // Ignore log messages in tests
+        };
+    handler.Bootstrap(logFunc, Data::SmallWaypointsList, {});
   }
 };
 
@@ -48,13 +57,12 @@ TEST_F(RouteHandlerTest, RouteWithSpacesAndColons) {
 }
 
 TEST_F(RouteHandlerTest, UnknownWaypoint) {
-  // TODO: add database to check against actual invalid waypoints
   auto parsedRoute = handler.GetParser()->ParseRawRoute(
-      "KSFO SID1 INVALID_WPT STAR1 KLAX", "KSFO", "KLAX");
+      "KSFO BLUE INVALID_WPT TESIG KLAX", "KSFO", "KLAX");
 
   EXPECT_FALSE(parsedRoute.errors.empty());
   EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_WAYPOINT,
-                             3);
+                             1);
 }
 
 TEST_F(RouteHandlerTest, DepartureArrivalRunways) {
@@ -75,6 +83,29 @@ TEST_F(RouteHandlerTest, DepartureArrivalRunwaysWithMismatchingICAO) {
   EXPECT_EQ(parsedRoute.arrivalRunway, std::nullopt);
   EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 2);
   EXPECT_EQ(parsedRoute.totalTokens, 5);
+}
+
+TEST_F(RouteHandlerTest, ChangeOfFlightRule) {
+  auto parsedRoute = handler.GetParser()->ParseRawRoute(
+      "VFR BLUE DCT IFR PAINT", "KSFO", "KLAX");
+
+  ASSERT_EQ(parsedRoute.waypoints.size(), 2);
+  EXPECT_EQ(parsedRoute.waypoints[0].GetFlightRule(), FlightRule::VFR);
+  EXPECT_EQ(parsedRoute.waypoints[1].GetFlightRule(), FlightRule::IFR);
+}
+
+TEST_F(RouteHandlerTest, LatLonInRoute) {
+  auto parsedRoute = handler.GetParser()->ParseRawRoute(
+      "BLUE DCT PAINT DCT 5220N03305E", "KSFO", "KLAX");
+
+  ASSERT_EQ(parsedRoute.waypoints.size(), 3);
+  EXPECT_EQ(parsedRoute.errors.size(), 0);
+  EXPECT_EQ(parsedRoute.waypoints[2].getType(), WaypointType::LATLON);
+  EXPECT_EQ(parsedRoute.waypoints[2].getIdentifier(), "5220N03305E");
+  EXPECT_EQ(parsedRoute.waypoints[2].getPosition().latitude().degrees(),
+            52.333333333333336);
+  EXPECT_EQ(parsedRoute.waypoints[2].getPosition().longitude().degrees(),
+            33.083333333333336);
 }
 
 } // namespace RouteHandlerTests

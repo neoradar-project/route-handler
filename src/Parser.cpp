@@ -79,7 +79,7 @@ bool ParserHandler::ParseWaypoints(ParsedRoute &parsedRoute, int index,
   token = parts[0];
 
   auto waypoint =
-      NavdataContainer->FindClosestWaypointTo(token, previousWaypoint);
+      NavdataObject::FindClosestWaypointTo(token, previousWaypoint);
   if (waypoint) {
     if (parts.size() > 1) {
       plannedAltAndSpd = this->ParsePlannedAltitudeAndSpeed(index, parts[1]);
@@ -156,7 +156,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
   const std::vector<std::string> routeParts = absl::StrSplit(route, ' ');
   parsedRoute.totalTokens = routeParts.size();
 
-  auto previousWaypoint = NavdataContainer->FindWaypointByType(origin, AIRPORT);
+  auto previousWaypoint = NavdataObject::FindWaypointByType(origin, AIRPORT);
   FlightRule currentFlightRule = filedFlightRule;
 
   for (auto i = 0; i < routeParts.size(); i++) {
