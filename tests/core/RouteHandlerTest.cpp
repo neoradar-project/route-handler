@@ -99,13 +99,76 @@ TEST_F(RouteHandlerTest, LatLonInRoute) {
       "BLUE DCT PAINT DCT 5220N03305E", "KSFO", "KLAX");
 
   ASSERT_EQ(parsedRoute.waypoints.size(), 3);
-  EXPECT_EQ(parsedRoute.errors.size(), 0);
+  ASSERT_EQ(parsedRoute.errors.size(), 0);
   EXPECT_EQ(parsedRoute.waypoints[2].getType(), WaypointType::LATLON);
   EXPECT_EQ(parsedRoute.waypoints[2].getIdentifier(), "5220N03305E");
   EXPECT_EQ(parsedRoute.waypoints[2].getPosition().latitude().degrees(),
             52.333333333333336);
   EXPECT_EQ(parsedRoute.waypoints[2].getPosition().longitude().degrees(),
             33.083333333333336);
+}
+
+TEST_F(RouteHandlerTest, WaypointsAndLatLonWithPlannedPosition) {
+  auto parsedRoute = handler.GetParser()->ParseRawRoute(
+      "N0284A045 BLUE PAINT/K0200A165 5220N03305E/M082M0160 TESIG/K0200M0650 "
+      "PAINT/N0400S0400 BLUE/N0400F165",
+      "KSFO", "KLAX");
+
+  ASSERT_EQ(parsedRoute.waypoints.size(), 6);
+  ASSERT_EQ(parsedRoute.errors.size(), 0);
+  EXPECT_EQ(parsedRoute.totalTokens, 7);
+
+  EXPECT_EQ(parsedRoute.waypoints[0].GetPlannedPosition(), std::nullopt);
+  EXPECT_NE(parsedRoute.waypoints[1].GetPlannedPosition(), std::nullopt);
+  EXPECT_NE(parsedRoute.waypoints[2].GetPlannedPosition(), std::nullopt);
+  EXPECT_NE(parsedRoute.waypoints[3].GetPlannedPosition(), std::nullopt);
+  EXPECT_NE(parsedRoute.waypoints[4].GetPlannedPosition(), std::nullopt);
+  EXPECT_NE(parsedRoute.waypoints[5].GetPlannedPosition(), std::nullopt);
+
+  // PAINT/K0200A165
+  EXPECT_EQ(parsedRoute.waypoints[1].GetPlannedPosition()->plannedAltitude,
+            16500);
+  EXPECT_EQ(parsedRoute.waypoints[1].GetPlannedPosition()->plannedSpeed, 200);
+  EXPECT_EQ(parsedRoute.waypoints[1].GetPlannedPosition()->altitudeUnit,
+            Units::Distance::FEET);
+  EXPECT_EQ(parsedRoute.waypoints[1].GetPlannedPosition()->speedUnit,
+            Units::Speed::KMH);
+
+  // 5220N03305E/M082M0160
+  EXPECT_EQ(parsedRoute.waypoints[2].GetPlannedPosition()->plannedAltitude,
+            1600);
+  EXPECT_EQ(parsedRoute.waypoints[2].GetPlannedPosition()->plannedSpeed, 82);
+  EXPECT_EQ(parsedRoute.waypoints[2].GetPlannedPosition()->altitudeUnit,
+            Units::Distance::METERS);
+  EXPECT_EQ(parsedRoute.waypoints[2].GetPlannedPosition()->speedUnit,
+            Units::Speed::MACH);
+
+  // TESIG/K0200M065
+  EXPECT_EQ(parsedRoute.waypoints[3].GetPlannedPosition()->plannedAltitude,
+            6500);
+  EXPECT_EQ(parsedRoute.waypoints[3].GetPlannedPosition()->plannedSpeed, 200);
+  EXPECT_EQ(parsedRoute.waypoints[3].GetPlannedPosition()->altitudeUnit,
+            Units::Distance::METERS);
+  EXPECT_EQ(parsedRoute.waypoints[3].GetPlannedPosition()->speedUnit,
+            Units::Speed::KMH);
+
+  // PAINT/N0400S0400
+  EXPECT_EQ(parsedRoute.waypoints[4].GetPlannedPosition()->plannedAltitude,
+            4000);
+  EXPECT_EQ(parsedRoute.waypoints[4].GetPlannedPosition()->plannedSpeed, 400);
+  EXPECT_EQ(parsedRoute.waypoints[4].GetPlannedPosition()->altitudeUnit,
+            Units::Distance::METERS);
+  EXPECT_EQ(parsedRoute.waypoints[4].GetPlannedPosition()->speedUnit,
+            Units::Speed::KNOTS);
+
+  // BLUE/N0400F165
+  EXPECT_EQ(parsedRoute.waypoints[5].GetPlannedPosition()->plannedAltitude,
+            16500);
+  EXPECT_EQ(parsedRoute.waypoints[5].GetPlannedPosition()->plannedSpeed, 400);
+  EXPECT_EQ(parsedRoute.waypoints[5].GetPlannedPosition()->altitudeUnit,
+            Units::Distance::FEET);
+  EXPECT_EQ(parsedRoute.waypoints[5].GetPlannedPosition()->speedUnit,
+            Units::Speed::KNOTS);
 }
 
 } // namespace RouteHandlerTests

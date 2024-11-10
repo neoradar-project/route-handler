@@ -6,8 +6,10 @@
 #include "absl/strings/str_split.h"
 #include "erkir/geo/sphericalpoint.h"
 #include "types/ParsedRoute.h"
+#include "types/ParsingError.h"
 #include "types/RouteWaypoint.h"
 #include "types/Waypoint.h"
+#include <iostream>
 #include <optional>
 #include <vector>
 
@@ -25,6 +27,10 @@ bool ParserHandler::ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
     for (const auto &error : res.errors) {
       // This function is called twice, once in strict mode and once in non
       // strict mode We don't want to add the same error twice
+      if (strict && error.type == UNKNOWN_PROCEDURE) {
+        continue; // In strict mode, since we only accept procedures in dataset,
+                  // this error can be ignored
+      }
       Utils::InsertParsingErrorIfNotDuplicate(parsedRoute.errors, error);
     }
   }
@@ -78,8 +84,7 @@ bool ParserHandler::ParseWaypoints(ParsedRoute &parsedRoute, int index,
       std::nullopt;
   token = parts[0];
 
-  auto waypoint =
-      NavdataObject::FindClosestWaypointTo(token, previousWaypoint);
+  auto waypoint = NavdataObject::FindClosestWaypointTo(token, previousWaypoint);
   if (waypoint) {
     if (parts.size() > 1) {
       plannedAltAndSpd = this->ParsePlannedAltitudeAndSpeed(index, parts[1]);
@@ -115,7 +120,7 @@ ParserHandler::ParsePlannedAltitudeAndSpeed(int index, std::string rightToken) {
     const std::string extractedSpeedUnit = match.get<1>().to_string();
     const int extractedSpeed = match.get<2>().to_number();
     const std::string extractedAltitudeUnit = match.get<3>().to_string();
-    const int extractedAltitude = match.get<4>().to_number();
+    int extractedAltitude = match.get<4>().to_number();
 
     Units::Distance altitudeUnit = Units::Distance::FEET;
     if (extractedAltitudeUnit == "M" || extractedAltitudeUnit == "S") {
@@ -128,6 +133,14 @@ ParserHandler::ParsePlannedAltitudeAndSpeed(int index, std::string rightToken) {
       speedUnit = Units::Speed::MACH;
     } else if (extractedSpeedUnit == "K") {
       speedUnit = Units::Speed::KMH;
+    }
+
+    // We need to convert the altitude to a full int
+    if (extractedAltitudeUnit == "F" || extractedAltitudeUnit == "A") {
+      extractedAltitude *= 100;
+    }
+    if (extractedAltitudeUnit == "S" || extractedAltitudeUnit == "M") {
+      extractedAltitude *= 10; // Convert tens of meters to meters
     }
 
     return RouteWaypoint::PlannedAltitudeAndSpeed{
@@ -210,6 +223,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
     // We check if it's a LAT/LON coordinate
     if (this->ParseLatLon(parsedRoute, i, token, previousWaypoint,
                           currentFlightRule)) {
+
       continue;
     }
 
