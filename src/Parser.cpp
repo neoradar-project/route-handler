@@ -12,7 +12,8 @@ using namespace RouteParser;
 
 bool ParserHandler::ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
                                           std::string token,
-                                          std::string anchorIcao, bool strict) {
+                                          std::string anchorIcao, bool strict,
+                                          FlightRule currentFlightRule) {
 
   auto res = SidStarParser::FindProcedure(token, anchorIcao,
                                           index == 0 ? SID : STAR, index);
@@ -57,7 +58,8 @@ bool ParserHandler::ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
 
   if (res.extractedProcedure) {
     Utils::InsertWaypointsAsRouteWaypoints(parsedRoute.waypoints,
-                                           res.extractedProcedure->waypoints);
+                                           res.extractedProcedure->waypoints,
+                                           currentFlightRule);
     return true; // Parsed a procedure
   }
 
@@ -66,7 +68,8 @@ bool ParserHandler::ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
 
 bool ParserHandler::ParseWaypoints(ParsedRoute &parsedRoute, int index,
                                    std::string token,
-                                   std::optional<Waypoint> &previousWaypoint) {
+                                   std::optional<Waypoint> &previousWaypoint,
+                                   FlightRule currentFlightRule) {
   const std::vector<std::string> parts = absl::StrSplit(token, '/');
   std::optional<RouteWaypoint::PlannedAltitudeAndSpeed> plannedAltAndSpd =
       std::nullopt;
@@ -84,8 +87,8 @@ bool ParserHandler::ParseWaypoints(ParsedRoute &parsedRoute, int index,
                                       token + '/' + parts[1], INFO});
       }
     }
-    parsedRoute.waypoints.push_back(
-        Utils::WaypointToRouteWaypoint(waypoint.value(), plannedAltAndSpd));
+    parsedRoute.waypoints.push_back(Utils::WaypointToRouteWaypoint(
+        waypoint.value(), currentFlightRule, plannedAltAndSpd));
     previousWaypoint = waypoint;
     return true;
   }
@@ -135,7 +138,8 @@ ParserHandler::ParsePlannedAltitudeAndSpeed(int index, std::string rightToken) {
 }
 
 ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
-                                         std::string destination) {
+                                         std::string destination,
+                                         FlightRule filedFlightRule) {
   auto parsedRoute = ParsedRoute();
   parsedRoute.rawRoute = route;
 
@@ -150,25 +154,32 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
   parsedRoute.totalTokens = routeParts.size();
 
   auto previousWaypoint = NavdataContainer->FindWaypointByType(origin, AIRPORT);
+  FlightRule currentFlightRule = filedFlightRule;
 
   for (auto i = 0; i < routeParts.size(); i++) {
     const auto token = routeParts[i];
 
     if (token.empty() || token == origin || token == destination ||
-        token == " ") {
+        token == " " || token == "." || token == "..") {
       parsedRoute.totalTokens--;
       continue;
     }
 
-    if (token == "DCT" || token == "." || token == "..") {
+    if (token == "DCT") {
       continue; // These count as tokens but we don't need to do anything with
                 // them
+    }
+
+    // This is a very simple check, so we can run it already
+    if (this->ParseFlightRule(currentFlightRule, i, token)) {
+      continue;
     }
 
     if (i == 0) {
       // Sometimes, the flightplan is prefixed with the TAS and planned level.
       // If that's the case, we'll ignore it as it should be specified elsewhere
       // in the flightplan
+      // It still counts as a token
       if (this->ParsePlannedAltitudeAndSpeed(i, token)) {
         continue;
       }
@@ -182,12 +193,14 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
       // in strict mode, meaning we will only accept something we have in
       // dataset hence that we know for sure is a SID/STAR
       if (this->ParseFirstAndLastPart(parsedRoute, i, token,
-                                      i == 0 ? origin : destination, true)) {
+                                      i == 0 ? origin : destination, true,
+                                      currentFlightRule)) {
         continue;
       }
     }
     // We always first check if it's a waypoint directly
-    if (this->ParseWaypoints(parsedRoute, i, token, previousWaypoint)) {
+    if (this->ParseWaypoints(parsedRoute, i, token, previousWaypoint,
+                             currentFlightRule)) {
       continue; // Found a waypoint, so we can skip the rest
     }
 
@@ -203,7 +216,8 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
       // We assume it's not an airway, because an airway cannot be at the first
       // or last part If it is, the flight plan is invalid
       if (this->ParseFirstAndLastPart(parsedRoute, i, token,
-                                      i == 0 ? origin : destination, false)) {
+                                      i == 0 ? origin : destination, false,
+                                      currentFlightRule)) {
         continue;
       }
     }
@@ -214,4 +228,15 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
   }
 
   return parsedRoute;
+}
+bool RouteParser::ParserHandler::ParseFlightRule(FlightRule &currentFlightRule,
+                                                 int index, std::string token) {
+  if (token == "IFR") {
+    currentFlightRule = IFR;
+    return true;
+  } else if (token == "VFR") {
+    currentFlightRule = VFR;
+    return true;
+  }
+  return false;
 }

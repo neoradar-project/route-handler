@@ -4,7 +4,6 @@
 #include "types/Waypoint.h"
 #include <string>
 
-
 namespace RouteParser {
 
 /**
@@ -32,8 +31,7 @@ private:
    */
   bool ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
                              std::string token, std::string anchorIcao,
-                             bool strict = false);
-
+                             bool strict = false, FlightRule currentFlightRule = IFR);
   /**
    * @brief Performs a waypoint check on the parsed route.
    * @param parsedRoute The parsed route object.
@@ -42,13 +40,18 @@ private:
    * @param previousWaypoint The previous waypoint, if any.
    */
   bool ParseWaypoints(ParsedRoute &parsedRoute, int index, std::string token,
-                      std::optional<Waypoint> &previousWaypoint);
+                      std::optional<Waypoint> &previousWaypoint,
+                      FlightRule currentFlightRule);
 
   // 57N020W 59S030E 60N040W for no minutes, or 5220N03305E for minutes
-  bool ParseLatLon(ParsedRoute &parsedRoute, int index, std::string token);
+  bool ParseLatLon(ParsedRoute &parsedRoute, int index, std::string token,
+                   FlightRule currentFlightRule);
 
   std::optional<RouteWaypoint::PlannedAltitudeAndSpeed>
   ParsePlannedAltitudeAndSpeed(int index, std::string rightToken);
+
+  bool ParseFlightRule(FlightRule &currentFlightRule, int index,
+                       std::string token);
 
 public:
   /**
@@ -59,7 +62,8 @@ public:
    * @return A ParsedRoute object representing the parsed route.
    */
   ParsedRoute ParseRawRoute(std::string route, std::string origin,
-                            std::string destination);
+                            std::string destination,
+                            FlightRule filedFlightRule = IFR);
 };
 
 } // namespace RouteParser

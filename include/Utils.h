@@ -19,21 +19,22 @@ static std::string CleanupRawRoute(std::string route) {
 
 static void InsertWaypointsAsRouteWaypoints(
     std::vector<RouteParser::RouteWaypoint> &waypoints,
-    const std::vector<RouteParser::Waypoint> &parsedWaypoints) {
+    const std::vector<RouteParser::Waypoint> &parsedWaypoints,
+    FlightRule currentFlightRule) {
   for (const auto &waypoint : parsedWaypoints) {
     waypoints.push_back(RouteParser::RouteWaypoint(
         waypoint.getType(), waypoint.getIdentifier(), waypoint.getPosition(),
-        waypoint.getFrequencyHz()));
+        waypoint.getFrequencyHz(), currentFlightRule));
   }
 }
 
 static RouteParser::RouteWaypoint WaypointToRouteWaypoint(
-    RouteParser::Waypoint waypoint,
+    RouteParser::Waypoint waypoint, FlightRule currentFlightRule = IFR,
     std::optional<RouteWaypoint::PlannedAltitudeAndSpeed> plannedPosition =
         std::nullopt) {
   return RouteParser::RouteWaypoint(
       waypoint.getType(), waypoint.getIdentifier(), waypoint.getPosition(),
-      waypoint.getFrequencyHz(), plannedPosition);
+      waypoint.getFrequencyHz(), currentFlightRule, plannedPosition);
 }
 
 static void

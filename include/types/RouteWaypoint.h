@@ -16,11 +16,14 @@ public:
     Units::Speed speedUnit = Units::Speed::KNOTS;
   };
 
-  RouteWaypoint(WaypointType type, std::string identifier,
-                erkir::spherical::Point position, int frequencyHz = 0,
-                std::optional<PlannedAltitudeAndSpeed> plannedPosition = std::nullopt)
+  RouteWaypoint(
+      WaypointType type, std::string identifier,
+      erkir::spherical::Point position, int frequencyHz = 0,
+      FlightRule flightRule = IFR,
+      std::optional<PlannedAltitudeAndSpeed> plannedPosition = std::nullopt)
       : Waypoint(type, identifier, position, frequencyHz) {
     this->plannedPosition = plannedPosition;
+    this->flightRule = flightRule;
   }
 
   std::optional<PlannedAltitudeAndSpeed> GetPlannedPosition() const {
@@ -29,5 +32,6 @@ public:
 
 private:
   std::optional<PlannedAltitudeAndSpeed> plannedPosition = std::nullopt;
+  FlightRule flightRule = IFR;
 };
 }; // namespace RouteParser
