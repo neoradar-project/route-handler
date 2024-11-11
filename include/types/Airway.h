@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <erkir/geo/sphericalpoint.h>
 #include <memory>
+#include <algorithm>
 #include "exceptions/AirwayExceptions.h"
 
 namespace RouteParser
