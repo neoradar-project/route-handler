@@ -3,7 +3,7 @@
 #include "Navdata.h"
 #include "Parser.h"
 #include "types/Procedure.h"
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <string>
 #include <types/Waypoint.h>
@@ -17,8 +17,8 @@ public:
 
   std::shared_ptr<ParserHandler> GetParser();
   void Bootstrap(ILogger logFunc,
-                 std::multimap<std::string, Waypoint> waypoints,
-                 std::multimap<std::string, Procedure> procedures) {
+                 std::unordered_multimap<std::string, Waypoint> waypoints,
+                 std::unordered_multimap<std::string, Procedure> procedures) {
     Log::SetLogger(logFunc);
     NavdataObject::SetWaypoints(waypoints, procedures);
 

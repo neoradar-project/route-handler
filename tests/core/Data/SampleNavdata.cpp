@@ -1,10 +1,10 @@
 #include "types/Waypoint.h"
-#include <map>
+#include <unordered_map>
 #include <string>
 
 namespace RouteHandlerTests {
 namespace Data {
-static inline const std::multimap<std::string, RouteParser::Waypoint>
+static inline const std::unordered_multimap<std::string, RouteParser::Waypoint>
     SmallWaypointsList = {
         {"PAINT", RouteParser::Waypoint(RouteParser::WaypointType::FIX, "PAINT",
                                         {0, 0})},

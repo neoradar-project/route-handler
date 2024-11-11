@@ -2,10 +2,11 @@
 #include "Log.h"
 #include "types/Procedure.h"
 #include "types/Waypoint.h"
-#include <map>
+#include <unordered_map>
 #include <mutex>
 #include <optional>
 #include <string>
+#include <unordered_map>
 
 namespace RouteParser
 {
@@ -20,8 +21,8 @@ namespace RouteParser
      * @param waypoints The waypoints to set.
      * @param procedures The procedures to set.
      */
-    static void SetWaypoints(std::multimap<std::string, Waypoint> newWaypoints,
-                             std::multimap<std::string, Procedure> newProcedures)
+    static void SetWaypoints(std::unordered_multimap<std::string, Waypoint> newWaypoints,
+                             std::unordered_multimap<std::string, Procedure> newProcedures)
     {
       std::lock_guard<std::mutex> lock(_mutex);
       waypoints = newWaypoints;
@@ -32,12 +33,12 @@ namespace RouteParser
                 procedures.size());
     }
 
-    static std::multimap<std::string, Waypoint> GetWaypoints()
+    static std::unordered_multimap<std::string, Waypoint> GetWaypoints()
     {
       std::lock_guard<std::mutex> lock(_mutex);
       return waypoints;
     }
-    static std::multimap<std::string, Procedure> GetProcedures()
+    static std::unordered_multimap<std::string, Procedure> GetProcedures()
     {
       std::lock_guard<std::mutex> lock(_mutex);
       return procedures;
@@ -71,8 +72,8 @@ namespace RouteParser
 
   private:
     inline static std::mutex _mutex;
-    inline static std::multimap<std::string, Waypoint> waypoints = {};
-    inline static std::multimap<std::string, Procedure> procedures = {};
+    inline static std::unordered_multimap<std::string, Waypoint> waypoints = {};
+    inline static std::unordered_multimap<std::string, Procedure> procedures = {};
   };
 
   // const static auto NavdataContainer = std::make_shared<NavdataObject>();

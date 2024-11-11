@@ -1,4 +1,5 @@
 #include "Navdata.h"
+#include <map>
 
 using namespace RouteParser;
 
@@ -42,7 +43,7 @@ std::optional<Waypoint> RouteParser::NavdataObject::FindClosestWaypointTo(
 
   if (!waypointsByDistance.empty())
   {
-    return waypointsByDistance.begin()->second;
+    return waypointsByDistance.begin()->second; // Maps are ordered by default
   }
 
   return std::nullopt;
