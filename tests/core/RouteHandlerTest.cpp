@@ -2,6 +2,7 @@
 #include "Data/SampleNavdata.cpp"
 #include "Helpers/RouteHandlerTestHelpers.cpp"
 #include "types/ParsedRoute.h"
+#include "types/ParsingError.h"
 #include "types/Waypoint.h"
 #include <fmt/color.h>
 #include <fmt/core.h>
@@ -169,6 +170,29 @@ TEST_F(RouteHandlerTest, WaypointsAndLatLonWithPlannedPosition) {
             Units::Distance::FEET);
   EXPECT_EQ(parsedRoute.waypoints[5].GetPlannedPosition()->speedUnit,
             Units::Speed::KNOTS);
+}
+
+TEST_F(RouteHandlerTest, WaypointsAndLatLonWithInvalidPatternPlannedPosition) {
+  auto parsedRoute = handler.GetParser()->ParseRawRoute(
+      "N0284A045 BLUE PAINT/K200A0165 5220N03305E/M0082M160 TESIG/K020M050 "
+      "PAINT/N400S400 BLUE/N400F0165",
+      "KSFO", "KLAX");
+
+  ASSERT_EQ(parsedRoute.waypoints.size(), 6);
+  ASSERT_EQ(parsedRoute.errors.size(), 5);
+  EXPECT_EQ(parsedRoute.totalTokens, 7);
+
+  EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::INVALID_DATA, 5);
+  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 5);
+
+  EXPECT_EQ(parsedRoute.waypoints[0].GetPlannedPosition(), std::nullopt);
+  EXPECT_EQ(parsedRoute.waypoints[1].GetPlannedPosition(), std::nullopt);
+  EXPECT_EQ(parsedRoute.waypoints[2].GetPlannedPosition(), std::nullopt);
+  EXPECT_EQ(parsedRoute.waypoints[3].GetPlannedPosition(), std::nullopt);
+  EXPECT_EQ(parsedRoute.waypoints[4].GetPlannedPosition(), std::nullopt);
+  EXPECT_EQ(parsedRoute.waypoints[5].GetPlannedPosition(), std::nullopt);
+
+  
 }
 
 } // namespace RouteHandlerTests

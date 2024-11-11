@@ -9,7 +9,6 @@
 #include "types/ParsingError.h"
 #include "types/RouteWaypoint.h"
 #include "types/Waypoint.h"
-#include <iostream>
 #include <optional>
 #include <vector>
 
@@ -117,10 +116,20 @@ ParserHandler::ParsePlannedAltitudeAndSpeed(int index, std::string rightToken) {
   }
 
   try {
-    const std::string extractedSpeedUnit = match.get<1>().to_string();
-    const int extractedSpeed = match.get<2>().to_number();
-    const std::string extractedAltitudeUnit = match.get<3>().to_string();
-    int extractedAltitude = match.get<4>().to_number();
+    std::string extractedSpeedUnit = match.get<2>().to_string();
+    int extractedSpeed = match.get<3>().to_number();
+    std::string extractedAltitudeUnit = match.get<7>().to_string();
+    int extractedAltitude = match.get<8>().to_number();
+
+    if (extractedSpeedUnit.empty()) {
+      extractedSpeedUnit = match.get<4>().to_string();
+      extractedSpeed = match.get<5>().to_number();
+    }
+
+    if (extractedAltitudeUnit.empty()) {
+      extractedAltitudeUnit = match.get<9>().to_string();
+      extractedAltitude = match.get<10>().to_number();
+    }
 
     Units::Distance altitudeUnit = Units::Distance::FEET;
     if (extractedAltitudeUnit == "M" || extractedAltitudeUnit == "S") {
@@ -136,10 +145,10 @@ ParserHandler::ParsePlannedAltitudeAndSpeed(int index, std::string rightToken) {
     }
 
     // We need to convert the altitude to a full int
-    if (extractedAltitudeUnit == "F" || extractedAltitudeUnit == "A") {
+    if (altitudeUnit == Units::Distance::FEET) {
       extractedAltitude *= 100;
     }
-    if (extractedAltitudeUnit == "S" || extractedAltitudeUnit == "M") {
+    if (altitudeUnit == Units::Distance::METERS) {
       extractedAltitude *= 10; // Convert tens of meters to meters
     }
 
