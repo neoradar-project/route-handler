@@ -29,6 +29,7 @@ target_sources(route-handler
         src/RouteHandler.cpp
         src/Navdata.cpp
         src/Parser.cpp
+        src/AirwayParser.cpp
 )
 
 target_include_directories(route-handler
@@ -43,6 +44,7 @@ target_link_libraries(route-handler
         erkir
         fmt
         absl::strings
+        absl::flat_hash_map
 )
 
 configure_file(

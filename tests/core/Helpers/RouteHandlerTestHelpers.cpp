@@ -2,17 +2,23 @@
 #include <fmt/color.h>
 #include <fmt/core.h>
 #include <gtest/gtest.h>
+#include <algorithm>
 
 using namespace RouteParser;
 
-static void PRINT_ALL_PARSING_ERRORS(const ParsedRoute &parsedRoute) {
+static void PRINT_ALL_PARSING_ERRORS(const ParsedRoute &parsedRoute)
+{
   fmt::print(fg(fmt::color::orange) | fmt::emphasis::bold,
              "--- Route Parsing Errors ---\n");
-  for (const auto &error : parsedRoute.errors) {
-    if (error.level == INFO) {
+  for (const auto &error : parsedRoute.errors)
+  {
+    if (error.level == INFO)
+    {
       fmt::print(fg(fmt::color::dark_cyan) | fmt::emphasis::bold,
                  "INFO: ");
-    } else {
+    }
+    else
+    {
       fmt::print(fg(fmt::color::dark_red) | fmt::emphasis::bold,
                  "ERROR: ");
     }
@@ -25,22 +31,26 @@ static void PRINT_ALL_PARSING_ERRORS(const ParsedRoute &parsedRoute) {
 
 static void EXPECT_PARSE_ERROR_WITH_LEVEL(const ParsedRoute &parsedRoute,
                                           ParsingErrorLevel level,
-                                          int expectedErrors) {
+                                          int expectedErrors)
+{
   const auto errors = parsedRoute.errors;
   const auto errorsWithLevel =
-      std::count_if(errors.begin(), errors.end(), [level](const auto &error) {
-        return error.level == level;
-      });
+      std::count_if(errors.begin(), errors.end(), [level](const auto &error)
+                    { return error.level == level; });
 
-  if (errorsWithLevel != expectedErrors) {
+  if (errorsWithLevel != expectedErrors)
+  {
     PRINT_ALL_PARSING_ERRORS(parsedRoute);
   }
 
-  if (level == ERROR) {
+  if (level == ERROR)
+  {
     const auto errorsWithLevelError =
         errorsWithLevel; // We do this code to clarify the error message
     EXPECT_EQ(errorsWithLevelError, expectedErrors);
-  } else {
+  }
+  else
+  {
     const auto errorsWithLevelInfo =
         errorsWithLevel; // We do this code to clarify the error message
     EXPECT_EQ(errorsWithLevelInfo, expectedErrors);
@@ -49,20 +59,24 @@ static void EXPECT_PARSE_ERROR_WITH_LEVEL(const ParsedRoute &parsedRoute,
 
 static void EXPECT_PARSE_ERROR_OF_TYPE(const ParsedRoute &parsedRoute,
                                        ParsingErrorType type,
-                                       int expectedErrors) {
+                                       int expectedErrors)
+{
   const auto errors = parsedRoute.errors;
   const auto parsingErrorsOfType =
       std::count_if(errors.begin(), errors.end(),
-                    [type](const auto &error) { return error.type == type; });
+                    [type](const auto &error)
+                    { return error.type == type; });
 
-  if (parsingErrorsOfType != expectedErrors) {
+  if (parsingErrorsOfType != expectedErrors)
+  {
     PRINT_ALL_PARSING_ERRORS(parsedRoute);
   }
 
   EXPECT_EQ(parsingErrorsOfType, expectedErrors);
 }
 
-static void EXPECT_BASIC_ROUTE(ParsedRoute parsedRoute) {
+static void EXPECT_BASIC_ROUTE(ParsedRoute parsedRoute)
+{
   EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::INFO, 4);
   EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 0);
   EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_WAYPOINT,

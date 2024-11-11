@@ -4,45 +4,50 @@
 
 typedef std::function<void(const char *, const char *)> ILogger;
 
-class Log {
+class Log
+{
 public:
-  template <typename... T>
-  static void info(const std::string &message, T &&...args) {
-    if (logger != nullptr) {
-      logger("INFO", fmt::format(message, std::forward<T>(args)...).c_str());
-    }
+  template <typename... Args>
+  static void info(fmt::format_string<Args...> message, Args &&...args)
+  {
+    log("INFO", message, std::forward<Args>(args)...);
   }
 
-  template <typename... T>
-  static void error(const std::string &message, T &&...args) {
-    if (logger != nullptr) {
-      logger("ERROR", fmt::format(message, std::forward<T>(args)...).c_str());
-    }
+  template <typename... Args>
+  static void error(fmt::format_string<Args...> message, Args &&...args)
+  {
+    log("ERROR", message, std::forward<Args>(args)...);
   }
 
-  template <typename... T>
-  static void warn(const std::string &message, T &&...args) {
-    if (logger != nullptr) {
-      logger("WARN", fmt::format(message, std::forward<T>(args)...).c_str());
-    }
+  template <typename... Args>
+  static void warn(fmt::format_string<Args...> message, Args &&...args)
+  {
+    log("WARN", message, std::forward<Args>(args)...);
   }
 
-  template <typename... T>
-  static void debug(const std::string &message, T &&...args) {
-    if (logger != nullptr) {
-      logger("DEBUG", fmt::format(message, std::forward<T>(args)...).c_str());
-    }
+  template <typename... Args>
+  static void debug(fmt::format_string<Args...> message, Args &&...args)
+  {
+    log("DEBUG", message, std::forward<Args>(args)...);
   }
 
-  template <typename... T>
-  static void trace(const std::string &message, T &&...args) {
-    if (logger != nullptr) {
-      logger("TRACE", fmt::format(message, std::forward<T>(args)...).c_str());
-    }
+  template <typename... Args>
+  static void trace(fmt::format_string<Args...> message, Args &&...args)
+  {
+    log("TRACE", message, std::forward<Args>(args)...);
   }
 
   static void SetLogger(ILogger logFunc) { logger = logFunc; }
 
 private:
+  template <typename... Args>
+  static void log(const char *level, fmt::format_string<Args...> message, Args &&...args)
+  {
+    if (logger != nullptr)
+    {
+      logger(level, fmt::format(message, std::forward<Args>(args)...).c_str());
+    }
+  }
+
   inline static ILogger logger = nullptr;
 };

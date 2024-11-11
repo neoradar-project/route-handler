@@ -3,11 +3,14 @@ set (PROJECT_NAME router-handler-tests)
 include(CTest)
 enable_testing()
 
+set(TEST_USE_TESTDATA ON)
+
 # CORE TESTS
 set(test_core
     core/RouteHandlerTest.cpp
     core/RouteHandlerPerformanceTest.cpp
     core/Data/SampleNavdata.cpp
+    core/AirwayParserTest.cpp
 )
 
 # Configure Google Test
@@ -48,6 +51,21 @@ if(APPLE)
             ${COCOA_LIBRARY}
     )
 endif()
+
+if (TEST_USE_TESTDATA)
+add_custom_command(TARGET router-handler-tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory 
+        $<TARGET_FILE_DIR:router-handler-tests>/testdata/
+    COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_SOURCE_DIR}/testdata/airways.txt
+        $<TARGET_FILE_DIR:router-handler-tests>/testdata/airways.txt
+)
+endif()
+
+target_compile_definitions(${PROJECT_NAME}
+    PRIVATE
+        $<$<BOOL:${TEST_USE_TESTDATA}>:TEST_USE_TESTDATA>
+)
 
 # Register test
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
