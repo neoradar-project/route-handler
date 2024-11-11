@@ -3,6 +3,7 @@
 #include <charconv>
 #include <string_view>
 #include "Utils.h"
+
 namespace RouteParser
 {
 
@@ -19,6 +20,7 @@ namespace RouteParser
         AirwayNetwork network;
         bool valid_data = false;
 
+        // Process each line
         for (std::string_view line : absl::StrSplit(content, '\n', absl::SkipEmpty()))
         {
             if (line.empty() || line[0] == ';' || absl::StripAsciiWhitespace(line).empty())
@@ -29,6 +31,7 @@ namespace RouteParser
             fields.clear();
             Utils::SplitAirwayFields(line, fields);
 
+            // Basic validation
             static constexpr size_t MIN_FIELDS = 7;
             if (fields.size() < MIN_FIELDS)
             {
@@ -41,47 +44,54 @@ namespace RouteParser
                 continue;
             }
 
+            // Parse main fix coordinates
             auto mainPoint = ParsePoint(fields[1], fields[2]);
             if (!mainPoint)
             {
                 continue;
             }
 
+            // Create main fix
             AirwayFix mainFix{
                 std::string(fields[0]),
-                *mainPoint,
-                std::nullopt};
+                *mainPoint};
 
             std::string_view airwayName = fields[4];
             std::string_view airwayType = fields[5];
 
+            // Process first neighbor if present
             bool has_first_fix = fields.size() > 6 && fields[6] != "N";
             if (has_first_fix && fields.size() > 10)
             {
-                if (auto firstFix = ParseNeighbour(fields, 6))
+                if (auto neighborInfo = ParseNeighbour(fields, 6))
                 {
-                    network.addAirwaySegment(
+                    bool added = network.addAirwaySegment(
                         std::string(airwayName),
                         std::string(airwayType),
                         mainFix,
-                        firstFix->fix,
-                        firstFix->minimum_level.value_or(0),
-                        firstFix->valid_direction);
+                        AirwayFix{
+                            neighborInfo->name,
+                            neighborInfo->coord},
+                        neighborInfo->minimum_level.value_or(0),
+                        neighborInfo->valid_direction);
                 }
             }
 
+            // Process second neighbor if present
             size_t next_start = has_first_fix ? 11 : 7;
             if (fields.size() > next_start + 4 && fields[next_start] != "N")
             {
-                if (auto secondFix = ParseNeighbour(fields, next_start))
+                if (auto neighborInfo = ParseNeighbour(fields, next_start))
                 {
-                    network.addAirwaySegment(
+                    bool added = network.addAirwaySegment(
                         std::string(airwayName),
                         std::string(airwayType),
                         mainFix,
-                        secondFix->fix,
-                        secondFix->minimum_level.value_or(0),
-                        secondFix->valid_direction);
+                        AirwayFix{
+                            neighborInfo->name,
+                            neighborInfo->coord},
+                        neighborInfo->minimum_level.value_or(0),
+                        neighborInfo->valid_direction);
                 }
             }
 
@@ -93,6 +103,8 @@ namespace RouteParser
             return std::nullopt;
         }
 
+        // Finalize all airways before returning
+        network.finalizeAirways();
         return network;
     }
 
@@ -100,34 +112,35 @@ namespace RouteParser
         const std::vector<std::string_view> &fields,
         size_t start_index)
     {
-
+        // Validate field count
         if (fields.size() < start_index + 5)
         {
             return std::nullopt;
         }
 
+        // Parse coordinates
         auto point = ParsePoint(fields[start_index + 1], fields[start_index + 2]);
         if (!point)
         {
             return std::nullopt;
         }
 
+        // Parse minimum level
         auto level = ParseLevel(fields[start_index + 3]);
 
+        // Create neighbor info
         return NeighbourInfo{
-            AirwayFix{
-                std::string(fields[start_index]),
-                *point,
-                level},
-            fields[start_index + 4] == "Y",
-            level};
+            std::string(fields[start_index]), // name
+            *point,                           // coord
+            fields[start_index + 4] == "Y",   // valid_direction
+            level                             // minimum_level
+        };
     }
 
     std::optional<erkir::spherical::Point> AirwayParser::ParsePoint(
         std::string_view lat,
         std::string_view lng)
     {
-
         double latitude, longitude;
 
         try

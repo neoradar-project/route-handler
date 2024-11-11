@@ -1,6 +1,7 @@
 #pragma once
 #include <optional>
 #include <vector>
+#include <string_view>
 #include "types/Airway.h"
 
 namespace RouteParser
@@ -14,7 +15,8 @@ namespace RouteParser
     private:
         struct NeighbourInfo
         {
-            AirwayFix fix;
+            std::string name;
+            erkir::spherical::Point coord;
             bool valid_direction;
             std::optional<uint32_t> minimum_level;
         };

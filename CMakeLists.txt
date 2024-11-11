@@ -14,6 +14,8 @@ set(BUILD_SHARED_LIBS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE) 
 
+find_package(OpenMP)
+
 # Add this to make Abseil installation configs available
 set(ABSL_PROPAGATE_CXX_STD ON)
 set(ABSL_ENABLE_INSTALL ON)
@@ -30,6 +32,8 @@ target_sources(route-handler
         src/Navdata.cpp
         src/Parser.cpp
         src/AirwayParser.cpp
+
+        src/types/Airway.cpp
 )
 
 target_include_directories(route-handler
