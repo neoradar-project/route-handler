@@ -3,7 +3,7 @@ set (PROJECT_NAME router-handler-tests)
 include(CTest)
 enable_testing()
 
-set(TEST_USE_TESTDATA ON)
+set(TEST_USE_TESTDATA OFF)
 
 # CORE TESTS
 set(test_core
