@@ -29,17 +29,6 @@ namespace RouteParser
                                                                                  : "U";
     }
 
-    struct AirwayFix
-    {
-        std::string name;
-        erkir::spherical::Point coord;
-
-        bool operator==(const AirwayFix &other) const
-        {
-            return name == other.name;
-        }
-    };
-
     struct AirwaySegmentInfo
     {
         Waypoint from; // Changed from AirwayFix to Waypoint
