@@ -17,7 +17,12 @@ namespace RouteParser
         UNKNOWN_PROCEDURE,
         UNKNOWN_WAYPOINT,
         INVALID_RUNWAY,
-        INVALID_DATA
+        INVALID_DATA,
+
+        INVALID_AIRWAY_FORMAT,
+        UNKNOWN_AIRWAY,
+        INVALID_AIRWAY_DIRECTION,
+        AIRWAY_FIX_NOT_FOUND
     };
 
     struct ParsingError

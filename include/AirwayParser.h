@@ -3,6 +3,7 @@
 #include <vector>
 #include <string_view>
 #include "types/Airway.h"
+#include "types/AirwayNetwork.h"
 
 namespace RouteParser
 {

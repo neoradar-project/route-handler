@@ -33,8 +33,8 @@ target_sources(route-handler
         src/Parser.cpp
         src/AirwayParser.cpp
 
-        src/types/Airway.cpp
-)
+        src/types/AirwayNetwork.cpp
+        )
 
 target_include_directories(route-handler
     PUBLIC
