@@ -5,6 +5,7 @@
 #include <vector>
 #include <queue>
 #include <memory>
+#include <map>
 #include <erkir/geo/sphericalpoint.h>
 #include "Airway.h"
 #include "AirwayTypes.h"
@@ -18,6 +19,12 @@ namespace RouteParser
         std::shared_ptr<const Airway> findNearestAirway(const std::string &name, const erkir::spherical::Point &point) const;
 
     public:
+        RouteValidationResult validateAirwayTraversal(
+            const std::string &startFix,
+            const std::string &airwayName,
+            const std::string &endFix,
+            uint32_t flightLevel) const;
+
         RouteValidationResult validateRoute(const std::string &routeString) const;
         RouteValidationResult validateSegments(const std::vector<RouteSegment> &segments,
                                                const erkir::spherical::Point &startPoint) const;

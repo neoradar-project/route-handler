@@ -111,42 +111,40 @@ namespace RouteHandlerTests
 
             "SUMUM\t51.637281\t2.107706\t14\tY6\tB\t"
             "TOSVA\t51.677056\t2.073983\t10500\tY\t"
-            "N\n"
-
-            "BARMI\t52.478267\t2.570481\t14\tP7\tB\t"
-            "N\t"
-            "SONOG\t52.105475\t2.269467\t21500\tY\n"
-
-            "IDESI\t51.897706\t1.885578\t14\tP7\tB\t"
-            "SONOG\t52.105475\t2.269467\t08500\tN\t"
-            "LOGAN\t51.747589\t1.611828\t08500\tY\n"
-
-            "LOGAN\t51.747589\t1.611828\t14\tP7\tB\t"
-            "IDESI\t51.897706\t1.885578\t08500\tN\t"
-            "N\n"
-
-            "SONOG\t52.105475\t2.269467\t14\tP7\tB\t"
-            "BARMI\t52.478267\t2.570481\t21500\tN\t"
-            "IDESI\t51.897706\t1.885578\t08500\tY\n";
+            "N\n";
 
         auto network = AirwayParser::ParseAirwayTxt(input);
 
         network->finalizeAirways();
 
-        auto result = network->validateRoute("SUMUM Y6 IDESI P7 LOGAN");
-        EXPECT_TRUE(result.isValid);
-        EXPECT_TRUE(result.errors.empty());
-        ASSERT_EQ(result.segments.size(), 3);
-        EXPECT_TRUE(CheckSegment(result.segments[0], "SUMUM", 51.637281, 2.107706,
-                                 "TOSVA", 51.677056, 2.073983, 10500, true));
-        EXPECT_TRUE(CheckSegment(result.segments[1], "TOSVA", 51.677056, 2.073983,
-                                 "IDESI", 51.897706, 1.885578, 10500, true));
+        // Test with sufficient flight level
+        {
+            auto result = network->validateAirwayTraversal("SUMUM", "Y6", "IDESI", 11000);
+            EXPECT_TRUE(result.isValid);
+            EXPECT_TRUE(result.errors.empty());
+            ASSERT_EQ(result.segments.size(), 2);
+            EXPECT_TRUE(CheckSegment(result.segments[0], "SUMUM", 51.637281, 2.107706,
+                                     "TOSVA", 51.677056, 2.073983, 10500, true));
+            EXPECT_TRUE(CheckSegment(result.segments[1], "TOSVA", 51.677056, 2.073983,
+                                     "IDESI", 51.897706, 1.885578, 10500, true));
+        }
 
-        result = network->validateRoute("BANEM Y6 SUMUM");
-        EXPECT_FALSE(result.isValid);
-        ASSERT_EQ(result.errors.size(), 1);
-        EXPECT_EQ(result.errors[0].type, INVALID_AIRWAY_DIRECTION);
-        EXPECT_EQ(result.errors[0].message, "Cannot traverse airway in the specified direction");
+        // Test with insufficient flight level
+        {
+            auto result = network->validateAirwayTraversal("SUMUM", "Y6", "IDESI", 10000);
+            EXPECT_FALSE(result.isValid);
+            ASSERT_FALSE(result.errors.empty());
+            EXPECT_EQ(result.errors[0].type, INSUFFICIENT_FLIGHT_LEVEL);
+            EXPECT_TRUE(result.errors[0].message.find("10500") != std::string::npos);
+        }
+
+        // Test invalid direction
+        {
+            auto result = network->validateAirwayTraversal("IDESI", "Y6", "SUMUM", 20000);
+            EXPECT_FALSE(result.isValid);
+            ASSERT_FALSE(result.errors.empty());
+            EXPECT_EQ(result.errors[0].type, INVALID_AIRWAY_DIRECTION);
+        }
     }
 
 #ifdef TEST_USE_TESTDATA
@@ -169,6 +167,23 @@ namespace RouteHandlerTests
         ASSERT_EQ(result.errors.size(), 1);
         EXPECT_EQ(result.errors[0].type, INVALID_AIRWAY_DIRECTION);
         EXPECT_EQ(result.errors[0].message, "Cannot traverse airway in the specified direction");
+
+        {
+            result = network->validateRoute("DET L6 DVR UL9 KONAN UL607 SPI T180 NIVNU T847 IMCOM");
+
+            if (!result.errors.empty())
+            {
+                for (const auto &error : result.errors)
+                {
+                    std::cout << error.message << std::endl;
+                }
+            }
+
+            for (const auto &segment : result.segments)
+            {
+                std::cout << segment.from.name << " -> " << segment.to.name << std::endl;
+            }
+        }
     }
 
 #endif
