@@ -2,6 +2,8 @@
 #include <string>
 #include <erkir/geo/sphericalpoint.h>
 #include "ParsingError.h"
+#include "types/Waypoint.h" // Add this include
+
 namespace RouteParser
 {
 
@@ -40,8 +42,8 @@ namespace RouteParser
 
     struct AirwaySegmentInfo
     {
-        AirwayFix from;
-        AirwayFix to;
+        Waypoint from; // Changed from AirwayFix to Waypoint
+        Waypoint to;   // Changed from AirwayFix to Waypoint
         uint32_t minimum_level;
         bool canTraverse;
     };

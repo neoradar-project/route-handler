@@ -10,7 +10,7 @@
 #include "types/RouteWaypoint.h"
 #include <optional>
 #include <string>
-
+#include "Regexes.h"
 namespace RouteParser
 {
 
@@ -102,6 +102,32 @@ namespace RouteParser
       {
         parsingErrors.push_back(error);
       }
+    }
+
+    static WaypointType GetWaypointTypeByIdentifier(std::string identifier)
+    {
+      if (
+          ctre::match<RouteParser::Regexes::RouteVOR>(
+              identifier))
+      {
+        return WaypointType::VOR;
+      }
+
+      if (
+          ctre::match<RouteParser::Regexes::RouteNDB>(
+              identifier))
+      {
+        return WaypointType::NDB;
+      }
+
+      if (
+          ctre::match<RouteParser::Regexes::RouteFIX>(
+              identifier))
+      {
+        return WaypointType::FIX;
+      }
+
+      return WaypointType::UNKNOWN;
     }
   } // namespace Utils
 } // namespace RouteParser

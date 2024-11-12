@@ -1,6 +1,7 @@
 #pragma once
 #include "Airway.h"
 #include "AirwayTypes.h"
+#include "types/Waypoint.h" // Add this include
 #include <erkir/geo/sphericalpoint.h>
 #include <memory>
 #include <string>
@@ -38,18 +39,18 @@ namespace RouteParser
                                                                           const std::string &fixName) const;
         bool addAirwaySegment(const std::string &airwayName,
                               const std::string &levelChar,
-                              const AirwayFix &from,
-                              const AirwayFix &to,
+                              const Waypoint &from,
+                              const Waypoint &to,
                               uint32_t minLevel,
                               bool canTraverse);
         std::vector<AirwaySegmentInfo> getSegmentsBetween(const std::string &airwayName,
                                                           const std::string &from,
                                                           const std::string &to,
                                                           const erkir::spherical::Point &nearPoint) const;
-        std::vector<AirwayFix> getFixesBetween(const std::string &airwayName,
-                                               const std::string &from,
-                                               const std::string &to,
-                                               const erkir::spherical::Point &nearPoint) const;
+        std::vector<Waypoint> getFixesBetween(const std::string &airwayName,
+                                              const std::string &from,
+                                              const std::string &to,
+                                              const erkir::spherical::Point &nearPoint) const;
         std::vector<std::string> getAllAirways() const;
         std::shared_ptr<const Airway> getAirway(const std::string &name) const;
         std::shared_ptr<const Airway> getAirwayByLatLon(const std::string &name,

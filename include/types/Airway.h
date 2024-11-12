@@ -6,6 +6,7 @@
 #include "AirwayTypes.h"
 #include "exceptions/AirwayExceptions.h"
 #include <functional>
+#include "types/Waypoint.h"
 namespace RouteParser
 {
 
@@ -20,13 +21,13 @@ namespace RouteParser
             bool canTraverse;
         };
 
-        std::vector<AirwayFix> fixes;
-        std::vector<AirwayFix> ordered_fixes;
+        std::vector<Waypoint> fixes;
+        std::vector<Waypoint> ordered_fixes;
         std::vector<Connection> connections;
         std::unordered_map<std::string, size_t> fix_indices;
         std::unordered_map<std::string, std::vector<AirwaySegmentInfo>> path_cache;
 
-        inline size_t addFix(const AirwayFix &fix)
+        inline size_t addFix(const Waypoint &fix)
         {
             if (fixes.empty())
             {
@@ -34,7 +35,7 @@ namespace RouteParser
                 fix_indices.reserve(32);
             }
 
-            auto it = fix_indices.find(fix.name);
+            auto it = fix_indices.find(fix.getIdentifier());
             if (it != fix_indices.end())
             {
                 return it->second;
@@ -42,7 +43,7 @@ namespace RouteParser
 
             size_t idx = fixes.size();
             fixes.push_back(fix);
-            fix_indices.emplace(fix.name, idx);
+            fix_indices.emplace(fix.getIdentifier(), idx);
             return idx;
         }
 
@@ -139,9 +140,9 @@ namespace RouteParser
         {
             ordered_fixes = fixes;
             std::sort(ordered_fixes.begin(), ordered_fixes.end(),
-                      [](const AirwayFix &a, const AirwayFix &b)
+                      [](const Waypoint &a, const Waypoint &b)
                       {
-                          return a.coord.longitude().degrees() < b.coord.longitude().degrees();
+                          return a.getPosition().longitude().degrees() < b.getPosition().longitude().degrees();
                       });
         }
 
@@ -223,7 +224,7 @@ namespace RouteParser
             level = stringToAirwayLevel(levelChar.c_str());
         }
 
-        bool addSegment(const AirwayFix &from, const AirwayFix &to,
+        bool addSegment(const Waypoint &from, const Waypoint &to,
                         uint32_t minLevel, bool canTraverse)
         {
             if (connections.empty())
@@ -262,12 +263,12 @@ namespace RouteParser
             return findPath(from, to);
         }
 
-        const std::vector<AirwayFix> &getAllFixes() const
+        const std::vector<Waypoint> &getAllFixes() const
         {
             return fixes;
         }
 
-        const std::vector<AirwayFix> &getFixesInOrder() const
+        const std::vector<Waypoint> &getFixesInOrder() const
         {
             return ordered_fixes;
         }

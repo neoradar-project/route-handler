@@ -1,6 +1,8 @@
 #include "AirwayParser.h"
 #include <gtest/gtest.h>
 #include <fstream>
+#include "Navdata.h"
+
 using namespace RouteParser;
 
 namespace RouteHandlerTests
@@ -8,14 +10,14 @@ namespace RouteHandlerTests
     class AirwayNetworkTest : public ::testing::Test
     {
     protected:
-        bool CheckAirwayFix(const AirwayFix &fix,
+        bool CheckAirwayFix(const Waypoint &fix,
                             const std::string &name,
                             double lat,
                             double lon)
         {
-            return fix.name == name &&
-                   std::abs(fix.coord.latitude().degrees() - lat) < 0.000001 &&
-                   std::abs(fix.coord.longitude().degrees() - lon) < 0.000001;
+            return fix.getIdentifier() == name &&
+                   std::abs(fix.getPosition().latitude().degrees() - lat) < 0.000001 &&
+                   std::abs(fix.getPosition().longitude().degrees() - lon) < 0.000001;
         }
 
         bool CheckSegment(const AirwaySegmentInfo &segment,
@@ -166,10 +168,10 @@ namespace RouteHandlerTests
         EXPECT_FALSE(result.isValid);
         ASSERT_EQ(result.errors.size(), 1);
         EXPECT_EQ(result.errors[0].type, INVALID_AIRWAY_DIRECTION);
-        EXPECT_EQ(result.errors[0].message, "Cannot traverse airway in the specified direction");
+        EXPECT_EQ(result.errors[0].message, "Cannot traverse airway Y6 from BANEM to SUMUM");
 
         {
-            result = network->validateRoute("DET L6 DVR UL9 KONAN UL607 SPI T180 NIVNU T847 IMCOM");
+            result = network->validateRoute("ULTIB T420 TNT UN57 POL UN601 RIBEL P16 GASKO P18 NATEB");
 
             if (!result.errors.empty())
             {
@@ -181,9 +183,11 @@ namespace RouteHandlerTests
 
             for (const auto &segment : result.segments)
             {
-                std::cout << segment.from.name << " -> " << segment.to.name << std::endl;
+                std::cout << segment.from.getIdentifier() << " -> " << segment.to.getIdentifier() << std::endl;
             }
         }
+
+        std::cout << "Waypoints size " << NavdataObject::GetWaypoints().size() << std::endl;
     }
 
 #endif

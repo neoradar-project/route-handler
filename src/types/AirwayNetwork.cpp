@@ -15,7 +15,7 @@ namespace RouteParser
         {
             for (const auto &fix : it->second->getAllFixes())
             {
-                double dist = fix.coord.distanceTo(point);
+                double dist = fix.getPosition().distanceTo(point);
                 if (dist < minDist)
                 {
                     minDist = dist;
@@ -67,11 +67,11 @@ namespace RouteParser
             {
                 const auto &fixes = airway->getAllFixes();
                 auto it = std::find_if(fixes.begin(), fixes.end(),
-                                       [&](const AirwayFix &fix)
-                                       { return fix.name == segments.front().from; });
+                                       [&](const Waypoint &fix)
+                                       { return fix.getIdentifier() == segments.front().from; });
                 if (it != fixes.end())
                 {
-                    startPoint = it->coord;
+                    startPoint = it->getPosition();
                     foundStart = true;
                     break;
                 }
@@ -106,24 +106,24 @@ namespace RouteParser
 
                 if (!pathSegments.empty())
                 {
-                    currentPoint = pathSegments.back().to.coord;
+                    currentPoint = pathSegments.back().to.getPosition();
                     validatedSegments.insert(validatedSegments.end(),
                                              pathSegments.begin(),
                                              pathSegments.end());
                 }
             }
             // In validateSegments function
-            catch (const InvalidAirwayDirectionException &)
+            catch (const InvalidAirwayDirectionException &e)
             {
                 return {false,
-                        {ParsingError{INVALID_AIRWAY_DIRECTION, "Cannot traverse airway in the specified direction",
+                        {ParsingError{INVALID_AIRWAY_DIRECTION, e.what(),
                                       0, "", ERROR}},
                         {}};
             }
             catch (const FixNotFoundException &e)
             {
                 return {false,
-                        {ParsingError{AIRWAY_FIX_NOT_FOUND, "Fix not found in airway", 0, "", ERROR}},
+                        {ParsingError{AIRWAY_FIX_NOT_FOUND, e.what(), 0, "", ERROR}},
                         {}};
             }
             catch (const std::exception &e)
@@ -159,8 +159,8 @@ namespace RouteParser
 
     bool AirwayNetwork::addAirwaySegment(const std::string &airwayName,
                                          const std::string &levelChar,
-                                         const AirwayFix &from,
-                                         const AirwayFix &to,
+                                         const Waypoint &from,
+                                         const Waypoint &to,
                                          uint32_t minLevel,
                                          bool canTraverse)
     {
@@ -201,14 +201,14 @@ namespace RouteParser
         return airway->getSegmentsBetween(from, to);
     }
 
-    std::vector<AirwayFix> AirwayNetwork::getFixesBetween(const std::string &airwayName,
-                                                          const std::string &from,
-                                                          const std::string &to,
-                                                          const erkir::spherical::Point &nearPoint) const
+    std::vector<Waypoint> AirwayNetwork::getFixesBetween(const std::string &airwayName,
+                                                         const std::string &from,
+                                                         const std::string &to,
+                                                         const erkir::spherical::Point &nearPoint) const
     {
         auto segments = getSegmentsBetween(airwayName, from, to, nearPoint);
 
-        std::vector<AirwayFix> result;
+        std::vector<Waypoint> result;
         if (!segments.empty())
         {
             result.reserve(segments.size() + 1);
@@ -298,7 +298,7 @@ namespace RouteParser
                 double minDist = std::numeric_limits<double>::max();
                 for (const auto &fix : it->second->getAllFixes())
                 {
-                    double dist = fix.coord.distanceTo(nearPoint);
+                    double dist = fix.getPosition().distanceTo(nearPoint);
                     minDist = std::min(minDist, dist);
                 }
                 validAirways.push_back({it->second, minDist});

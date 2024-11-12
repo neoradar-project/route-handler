@@ -3,7 +3,7 @@
 #include <charconv>
 #include <string_view>
 #include "Utils.h"
-
+#include "Navdata.h"
 namespace RouteParser
 {
 
@@ -48,9 +48,7 @@ namespace RouteParser
                 continue;
             }
 
-            AirwayFix mainFix{
-                std::string(fields[0]),
-                *mainPoint};
+            Waypoint mainFix = NavdataObject::FindOrCreateWaypointByID(std::string(fields[0]), *mainPoint);
 
             std::string_view airwayName = fields[4];
             std::string_view airwayType = fields[5];
@@ -64,9 +62,8 @@ namespace RouteParser
                         std::string(airwayName),
                         std::string(airwayType),
                         mainFix,
-                        AirwayFix{
-                            neighborInfo->name,
-                            neighborInfo->coord},
+                        NavdataObject::FindOrCreateWaypointByID(neighborInfo->name,
+                                                                neighborInfo->coord),
                         neighborInfo->minimum_level.value_or(0),
                         neighborInfo->valid_direction);
                 }
@@ -81,9 +78,8 @@ namespace RouteParser
                         std::string(airwayName),
                         std::string(airwayType),
                         mainFix,
-                        AirwayFix{
-                            neighborInfo->name,
-                            neighborInfo->coord},
+                        NavdataObject::FindOrCreateWaypointByID(neighborInfo->name,
+                                                                neighborInfo->coord),
                         neighborInfo->minimum_level.value_or(0),
                         neighborInfo->valid_direction);
                 }

@@ -1,34 +1,48 @@
 #pragma once
 #include "erkir/geo/sphericalpoint.h"
 #include <string>
+namespace RouteParser
+{
 
-namespace RouteParser {
+  enum WaypointType
+  {
+    FIX,
+    VOR,
+    DME,
+    TACAN,
+    NDB,
+    AIRPORT,
+    LATLON,
+    UNKNOWN
+  };
 
-enum WaypointType { FIX, VOR, DME, TACAN, NDB, AIRPORT, LATLON };
+  class Waypoint
+  {
+  public:
+    Waypoint();
 
-class Waypoint {
-public:
-  Waypoint();
-  Waypoint(WaypointType type, std::string identifier,
-           erkir::spherical::Point position, int frequencyHz = 0) {
-    this->type = type;
-    this->identifier = identifier;
-    this->position = position;
-    this->frequencyHz = frequencyHz;
-  }
-  WaypointType getType() const { return type; };
-  std::string getIdentifier() const { return identifier; };
-  erkir::spherical::Point getPosition() const { return position; };
-  int getFrequencyHz() const { return frequencyHz; };
+    Waypoint(WaypointType type, std::string identifier,
+             erkir::spherical::Point position, int frequencyHz = 0)
+    {
+      this->type = type;
+      this->identifier = identifier;
+      this->position = position;
+      this->frequencyHz = frequencyHz;
+    }
+    WaypointType getType() const { return type; };
+    std::string getIdentifier() const { return identifier; };
+    erkir::spherical::Point getPosition() const { return position; };
+    int getFrequencyHz() const { return frequencyHz; };
 
-  double distanceToInMeters(Waypoint other) const {
-    return this->position.distanceTo(other.getPosition());
-  }
+    double distanceToInMeters(Waypoint other) const
+    {
+      return this->position.distanceTo(other.getPosition());
+    }
 
-private:
-  WaypointType type;
-  std::string identifier;
-  int frequencyHz;
-  erkir::spherical::Point position;
-};
+  private:
+    WaypointType type;
+    std::string identifier;
+    int frequencyHz;
+    erkir::spherical::Point position;
+  };
 } // namespace RouteParser
