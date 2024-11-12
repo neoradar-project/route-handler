@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <limits>
 #include <sstream>
+#include <numeric>
 
 namespace RouteParser
 {
@@ -289,8 +290,11 @@ namespace RouteParser
                     {}};
         }
 
-        // Collect airways that contain both fixes and calculate their distances
-        std::vector<std::pair<std::shared_ptr<const Airway>, double>> validAirways;
+        // Create stable containers for airways
+        std::vector<std::shared_ptr<const Airway>> matchingAirways;
+        std::vector<double> distances;
+
+        // First collect all valid airways
         for (auto it = range.first; it != range.second; ++it)
         {
             if (it->second->hasFix(startFix) && it->second->hasFix(endFix))
@@ -301,33 +305,39 @@ namespace RouteParser
                     double dist = fix.getPosition().distanceTo(nearPoint);
                     minDist = std::min(minDist, dist);
                 }
-                validAirways.push_back({it->second, minDist});
+                matchingAirways.push_back(it->second);
+                distances.push_back(minDist);
             }
         }
 
-        if (validAirways.empty())
+        if (matchingAirways.empty())
         {
             return {false,
                     {ParsingError{AIRWAY_FIX_NOT_FOUND, "No valid airway found containing both fixes", 0, "", ERROR}},
                     {}};
         }
 
-        // Sort airways by distance
-        std::sort(validAirways.begin(), validAirways.end(),
-                  [](const auto &a, const auto &b)
-                  { return a.second < b.second; });
+        // Create indices for sorting
+        std::vector<size_t> indices(matchingAirways.size());
+        std::iota(indices.begin(), indices.end(), 0);
+
+        // Sort indices based on distances
+        std::sort(indices.begin(), indices.end(),
+                  [&distances](size_t a, size_t b)
+                  { return distances[a] < distances[b]; });
 
         // Group sorted airways by level type
         std::map<AirwayLevel, std::vector<std::shared_ptr<const Airway>>> levelAirways;
-        for (const auto &[airway, _] : validAirways)
+        for (size_t idx : indices)
         {
+            auto airway = matchingAirways[idx];
             levelAirways[airway->level].push_back(airway);
         }
 
+        // Rest of the validation logic remains the same
         std::vector<ParsingError> errors;
         uint32_t lowestRequired = std::numeric_limits<uint32_t>::max();
 
-        // Try each airway level
         for (const auto &[level, airways] : levelAirways)
         {
             for (const auto &airway : airways)

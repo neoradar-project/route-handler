@@ -74,7 +74,7 @@ namespace RouteParser
       }
     }
 
-    static std::unordered_multimap<std::string, Waypoint> GetWaypoints()
+    static const std::unordered_multimap<std::string, Waypoint> &GetWaypoints()
     {
       std::lock_guard<std::mutex> lock(_mutex);
       return waypoints;

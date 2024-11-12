@@ -186,8 +186,6 @@ namespace RouteHandlerTests
                 std::cout << segment.from.getIdentifier() << " -> " << segment.to.getIdentifier() << std::endl;
             }
         }
-
-        std::cout << "Waypoints size " << NavdataObject::GetWaypoints().size() << std::endl;
     }
 
 #endif

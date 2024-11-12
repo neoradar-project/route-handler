@@ -209,7 +209,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
   }
 
   const std::vector<std::string> routeParts = absl::StrSplit(route, ' ');
-  parsedRoute.totalTokens = routeParts.size();
+  parsedRoute.totalTokens = static_cast<int>(routeParts.size());
 
   auto previousWaypoint = NavdataObject::FindWaypointByType(origin, AIRPORT);
   FlightRule currentFlightRule = filedFlightRule;
