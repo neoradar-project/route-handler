@@ -1,6 +1,7 @@
 #include "types/AirwayNetwork.h"
 #include <algorithm>
 #include <limits>
+#include <sstream>
 
 namespace RouteParser
 {

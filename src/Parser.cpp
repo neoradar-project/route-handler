@@ -332,3 +332,40 @@ bool RouteParser::ParserHandler::ParseLatLon(
 
   return false;
 };
+
+bool RouteParser::ParserHandler::ParseAirway(
+    ParsedRoute &parsedRoute, int index, std::string token,
+    std::optional<Waypoint> &previousWaypoint,
+    std::optional<std::string> nextToken, FlightRule currentFlightRule) {
+  if (!nextToken) {
+    return false; // We don't have a next waypoint, so we don't know where the
+                  // airway ends
+  }
+
+  if (token.find('/') != std::string::npos) {
+    return false; // Airway segments cannot have planned altitude and speed
+  }
+
+  if (!NavdataObject::GetAirwayNetwork().getAirway(token)) {
+    return false; // Airway not found
+  }
+
+  // We need to check if the airway is valid
+  auto airwaySegments = NavdataObject::GetAirwayNetwork().getFixesBetween(
+      token, previousWaypoint->getIdentifier(), nextToken.value_or(""),
+      previousWaypoint->getPosition());
+
+  if (airwaySegments.empty()) {
+    parsedRoute.errors.push_back({INVALID_AIRWAY_FORMAT,
+                                  "Airway segment not found", index, token,
+                                  ERROR});
+    return false;
+  }
+
+  for (const auto &segment : airwaySegments) {
+    // parsedRoute.waypoints.push_back(
+    //     Utils::WaypointToRouteWaypoint(segment, currentFlightRule));
+  }
+
+  return true;
+};

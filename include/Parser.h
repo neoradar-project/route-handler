@@ -55,6 +55,11 @@ private:
   bool ParseFlightRule(FlightRule &currentFlightRule, int index,
                        std::string token);
 
+  bool ParseAirway(ParsedRoute &parsedRoute, int index, std::string token,
+                   std::optional<Waypoint> &previousWaypoint,
+                   std::optional<std::string> nextToken,
+                   FlightRule currentFlightRule);
+
 public:
   /**
    * @brief Parses a raw route string into a ParsedRoute object.
