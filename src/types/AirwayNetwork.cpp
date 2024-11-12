@@ -277,7 +277,8 @@ namespace RouteParser
         const std::string &startFix,
         const std::string &airwayName,
         const std::string &endFix,
-        uint32_t flightLevel) const
+        uint32_t flightLevel,
+        const erkir::spherical::Point &nearPoint) const
     {
         auto range = airways.equal_range(airwayName);
 
@@ -288,22 +289,39 @@ namespace RouteParser
                     {}};
         }
 
-        // Group airways by level type (Low/High)
-        std::map<AirwayLevel, std::vector<std::shared_ptr<const Airway>>> levelAirways;
-
+        // Collect airways that contain both fixes and calculate their distances
+        std::vector<std::pair<std::shared_ptr<const Airway>, double>> validAirways;
         for (auto it = range.first; it != range.second; ++it)
         {
             if (it->second->hasFix(startFix) && it->second->hasFix(endFix))
             {
-                levelAirways[it->second->level].push_back(it->second);
+                double minDist = std::numeric_limits<double>::max();
+                for (const auto &fix : it->second->getAllFixes())
+                {
+                    double dist = fix.coord.distanceTo(nearPoint);
+                    minDist = std::min(minDist, dist);
+                }
+                validAirways.push_back({it->second, minDist});
             }
         }
 
-        if (levelAirways.empty())
+        if (validAirways.empty())
         {
             return {false,
                     {ParsingError{AIRWAY_FIX_NOT_FOUND, "No valid airway found containing both fixes", 0, "", ERROR}},
                     {}};
+        }
+
+        // Sort airways by distance
+        std::sort(validAirways.begin(), validAirways.end(),
+                  [](const auto &a, const auto &b)
+                  { return a.second < b.second; });
+
+        // Group sorted airways by level type
+        std::map<AirwayLevel, std::vector<std::shared_ptr<const Airway>>> levelAirways;
+        for (const auto &[airway, _] : validAirways)
+        {
+            levelAirways[airway->level].push_back(airway);
         }
 
         std::vector<ParsingError> errors;

@@ -117,9 +117,9 @@ namespace RouteHandlerTests
 
         network->finalizeAirways();
 
-        // Test with sufficient flight level
+        // Test with sufficient level
         {
-            auto result = network->validateAirwayTraversal("SUMUM", "Y6", "IDESI", 11000);
+            auto result = network->validateAirwayTraversal("SUMUM", "Y6", "IDESI", 11000, {51.677056, 2.073983});
             EXPECT_TRUE(result.isValid);
             EXPECT_TRUE(result.errors.empty());
             ASSERT_EQ(result.segments.size(), 2);
@@ -129,9 +129,9 @@ namespace RouteHandlerTests
                                      "IDESI", 51.897706, 1.885578, 10500, true));
         }
 
-        // Test with insufficient flight level
+        // Test with insufficient level
         {
-            auto result = network->validateAirwayTraversal("SUMUM", "Y6", "IDESI", 10000);
+            auto result = network->validateAirwayTraversal("SUMUM", "Y6", "IDESI", 10000, {51.677056, 2.073983});
             EXPECT_FALSE(result.isValid);
             ASSERT_FALSE(result.errors.empty());
             EXPECT_EQ(result.errors[0].type, INSUFFICIENT_FLIGHT_LEVEL);
@@ -140,7 +140,7 @@ namespace RouteHandlerTests
 
         // Test invalid direction
         {
-            auto result = network->validateAirwayTraversal("IDESI", "Y6", "SUMUM", 20000);
+            auto result = network->validateAirwayTraversal("IDESI", "Y6", "SUMUM", 20000, {51.677056, 2.073983});
             EXPECT_FALSE(result.isValid);
             ASSERT_FALSE(result.errors.empty());
             EXPECT_EQ(result.errors[0].type, INVALID_AIRWAY_DIRECTION);
