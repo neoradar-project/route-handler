@@ -20,6 +20,13 @@ namespace RouteParser
                                                                          : AirwayLevel::UNKNOWN;
     }
 
+    constexpr const char *airwayLevelToString(AirwayLevel level)
+    {
+        return (level == AirwayLevel::BOTH) ? "B" : (level == AirwayLevel::HIGH) ? "H"
+                                                : (level == AirwayLevel::LOW)    ? "L"
+                                                                                 : "U";
+    }
+
     struct AirwayFix
     {
         std::string name;

@@ -22,7 +22,9 @@ namespace RouteParser
         INVALID_AIRWAY_FORMAT,
         UNKNOWN_AIRWAY,
         INVALID_AIRWAY_DIRECTION,
-        AIRWAY_FIX_NOT_FOUND
+        AIRWAY_FIX_NOT_FOUND,
+        INSUFFICIENT_FLIGHT_LEVEL, // Add this new error type
+        MULTIPLE_AIRWAYS_FOUND     // Add this new error type
     };
 
     struct ParsingError

@@ -272,4 +272,93 @@ namespace RouteParser
             }
         }
     }
+
+    RouteValidationResult AirwayNetwork::validateAirwayTraversal(
+        const std::string &startFix,
+        const std::string &airwayName,
+        const std::string &endFix,
+        uint32_t flightLevel) const
+    {
+        auto range = airways.equal_range(airwayName);
+
+        if (range.first == range.second)
+        {
+            return {false,
+                    {ParsingError{UNKNOWN_AIRWAY, "Airway not found: " + airwayName, 0, "", ERROR}},
+                    {}};
+        }
+
+        // Group airways by level type (Low/High)
+        std::map<AirwayLevel, std::vector<std::shared_ptr<const Airway>>> levelAirways;
+
+        for (auto it = range.first; it != range.second; ++it)
+        {
+            if (it->second->hasFix(startFix) && it->second->hasFix(endFix))
+            {
+                levelAirways[it->second->level].push_back(it->second);
+            }
+        }
+
+        if (levelAirways.empty())
+        {
+            return {false,
+                    {ParsingError{AIRWAY_FIX_NOT_FOUND, "No valid airway found containing both fixes", 0, "", ERROR}},
+                    {}};
+        }
+
+        std::vector<ParsingError> errors;
+        uint32_t lowestRequired = std::numeric_limits<uint32_t>::max();
+
+        // Try each airway level
+        for (const auto &[level, airways] : levelAirways)
+        {
+            for (const auto &airway : airways)
+            {
+                try
+                {
+                    auto segments = airway->getSegmentsBetween(startFix, endFix);
+                    if (segments.empty())
+                        continue;
+
+                    // Check if all segments meet minimum level requirements
+                    bool canTraverseAtLevel = true;
+                    uint32_t maxRequiredLevel = 0;
+
+                    for (const auto &segment : segments)
+                    {
+                        if (segment.minimum_level > flightLevel)
+                        {
+                            canTraverseAtLevel = false;
+                            maxRequiredLevel = std::max(maxRequiredLevel, segment.minimum_level);
+                        }
+                    }
+
+                    if (canTraverseAtLevel)
+                    {
+                        return {true, {}, segments};
+                    }
+
+                    lowestRequired = std::min(lowestRequired, maxRequiredLevel);
+                    errors.push_back({INSUFFICIENT_FLIGHT_LEVEL,
+                                      std::string(airwayLevelToString(level)) + " airway requires FL" + std::to_string(maxRequiredLevel),
+                                      0, "", INFO});
+                }
+                catch (const InvalidAirwayDirectionException &)
+                {
+                    errors.push_back({INVALID_AIRWAY_DIRECTION,
+                                      std::string("Cannot traverse ") + airwayLevelToString(level) + " airway in this direction",
+                                      0, "", INFO});
+                }
+            }
+        }
+
+        if (errors.empty())
+        {
+            errors.push_back({INVALID_AIRWAY_DIRECTION,
+                              "No valid route found between fixes on " + airwayName,
+                              0, "", ERROR});
+        }
+
+        return {false, errors, {}};
+    }
 } // namespace RouteParser
