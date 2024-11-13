@@ -13,6 +13,7 @@
 #include <string>
 #include <unordered_map>
 #include "Utils.h"
+#include <iostream>
 namespace RouteParser
 {
 
@@ -60,8 +61,10 @@ namespace RouteParser
         file.close();
 
         const auto parsed = AirwayParser::ParseAirwayTxt(buffer.str());
+
         if (!parsed)
         {
+          std::cout << "Failed to parse airways" << std::endl;
           Log::error("Error parsing airways file: {}", airwaysFilePath);
           return;
         }
@@ -71,6 +74,82 @@ namespace RouteParser
       catch (std::exception &e)
       {
         Log::error("Error loading airways: {}", e.what());
+      }
+    }
+
+    static void LoadIntersectionWaypoints(std::string isecFilePath)
+    {
+      try
+      {
+        if (!std::filesystem::exists(isecFilePath))
+        {
+          Log::error("Intersection waypoints file does not exist: {}", isecFilePath);
+          return;
+        }
+
+        // Pre-allocate a large buffer for reading
+        constexpr size_t BUFFER_SIZE = 1024 * 1024; // 1MB buffer
+        std::vector<char> buffer(BUFFER_SIZE);
+
+        // Read file in chunks directly into waypoints
+        std::ifstream file(isecFilePath, std::ios::binary);
+        if (!file)
+        {
+          Log::error("Failed to open intersection waypoints file: {}", isecFilePath);
+          return;
+        }
+
+        // Reserve space in waypoints map to avoid rehashing
+        constexpr size_t ESTIMATED_WAYPOINTS = 10000;
+        std::lock_guard<std::mutex> lock(_mutex);
+        size_t currentSize = waypoints.size();
+        waypoints.reserve(currentSize + ESTIMATED_WAYPOINTS);
+
+        std::string line;
+        line.reserve(256); // Preallocate line buffer
+        std::vector<std::string_view> fields;
+        fields.reserve(5); // Preallocate fields vector
+
+        // Process file line by line without loading entire file
+        while (std::getline(file, line))
+        {
+          if (line.empty() || line[0] == ';')
+            continue;
+
+          fields.clear();
+          size_t start = 0;
+          size_t tab = 0;
+
+          // Manual tab splitting (faster than StrSplit)
+          while ((tab = line.find('\t', start)) != std::string::npos && fields.size() < 3)
+          {
+            fields.push_back(std::string_view(line.data() + start, tab - start));
+            start = tab + 1;
+          }
+          if (fields.size() < 3)
+            continue;
+
+          // Fast string to double conversion
+          char *endPtr;
+          double lat = std::strtod(std::string(fields[1]).c_str(), &endPtr);
+          if (*endPtr != '\0')
+            continue;
+
+          double lon = std::strtod(std::string(fields[2]).c_str(), &endPtr);
+          if (*endPtr != '\0')
+            continue;
+
+          // Create waypoint and insert directly
+          erkir::spherical::Point point(lat, lon);
+          std::string identifier(fields[0]);
+
+          // Only create if it doesn't exist
+          NavdataObject::FindOrCreateWaypointByID(identifier, point);
+        }
+      }
+      catch (const std::exception &e)
+      {
+        Log::error("Error loading intersection waypoints: {}", e.what());
       }
     }
 
@@ -129,7 +208,7 @@ namespace RouteParser
     static Waypoint FindOrCreateWaypointByID(std::string identifier,
                                              erkir::spherical::Point position)
     {
-      std::lock_guard<std::mutex> lock(_mutex);
+      std::lock_guard<std::mutex> lock(waypointsMutex);
       auto it = waypoints.find(identifier);
       if (it != waypoints.end())
       {
@@ -143,6 +222,8 @@ namespace RouteParser
 
   private:
     inline static std::mutex _mutex;
+    inline static std::mutex waypointsMutex;
+
     inline static std::unordered_multimap<std::string, Waypoint> waypoints = {};
     inline static std::unordered_multimap<std::string, Procedure> procedures = {};
     inline static AirwayNetwork airwayNetwork{};

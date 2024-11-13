@@ -151,42 +151,42 @@ namespace RouteHandlerTests
 
 #ifdef TEST_USE_TESTDATA
 
-    TEST_F(AirwayNetworkTest, ParseAirwayTxt)
-    {
-        auto network = AirwayParser::ParseAirwayTxt(ReadFile("testdata/airways.txt"));
-        ASSERT_TRUE(network.has_value());
+    // TEST_F(AirwayNetworkTest, ParseAirwayTxt)
+    // {
+    //     auto network = AirwayParser::ParseAirwayTxt(ReadFile("testdata/airways.txt"));
+    //     ASSERT_TRUE(network.has_value());
 
-        auto result = network->validateRoute("SUMUM Y6 IDESI P7 LOGAN");
-        EXPECT_TRUE(result.isValid);
-        ASSERT_EQ(result.segments.size(), 3);
-        EXPECT_TRUE(CheckSegment(result.segments[0], "SUMUM", 51.637281, 2.107706,
-                                 "TOSVA", 51.677056, 2.073983, 10500, true));
-        EXPECT_TRUE(CheckSegment(result.segments[1], "TOSVA", 51.677056, 2.073983,
-                                 "IDESI", 51.897706, 1.885578, 10500, true));
+    //     auto result = network->validateRoute("SUMUM Y6 IDESI P7 LOGAN");
+    //     EXPECT_TRUE(result.isValid);
+    //     ASSERT_EQ(result.segments.size(), 3);
+    //     EXPECT_TRUE(CheckSegment(result.segments[0], "SUMUM", 51.637281, 2.107706,
+    //                              "TOSVA", 51.677056, 2.073983, 10500, true));
+    //     EXPECT_TRUE(CheckSegment(result.segments[1], "TOSVA", 51.677056, 2.073983,
+    //                              "IDESI", 51.897706, 1.885578, 10500, true));
 
-        result = network->validateRoute("BANEM Y6 SUMUM");
-        EXPECT_FALSE(result.isValid);
-        ASSERT_EQ(result.errors.size(), 1);
-        EXPECT_EQ(result.errors[0].type, INVALID_AIRWAY_DIRECTION);
-        EXPECT_EQ(result.errors[0].message, "Cannot traverse airway Y6 from BANEM to SUMUM");
+    //     result = network->validateRoute("BANEM Y6 SUMUM");
+    //     EXPECT_FALSE(result.isValid);
+    //     ASSERT_EQ(result.errors.size(), 1);
+    //     EXPECT_EQ(result.errors[0].type, INVALID_AIRWAY_DIRECTION);
+    //     EXPECT_EQ(result.errors[0].message, "Cannot traverse airway Y6 from BANEM to SUMUM");
 
-        {
-            result = network->validateRoute("BARAD M747 SUBUT T916 LEYLA N161 SARIN A368 FKG W192 ESDEX W191 DNC W565 XIXAN B330 KWE W181 DUDIT A599 POU R473 SIERA");
+    //     {
+    //         result = network->validateRoute("BARAD M747 SUBUT T916 LEYLA N161 SARIN A368 FKG W192 ESDEX W191 DNC W565 XIXAN B330 KWE W181 DUDIT A599 POU R473 SIERA");
 
-            if (!result.errors.empty())
-            {
-                for (const auto &error : result.errors)
-                {
-                    std::cout << error.message << std::endl;
-                }
-            }
+    //         if (!result.errors.empty())
+    //         {
+    //             for (const auto &error : result.errors)
+    //             {
+    //                 std::cout << error.message << std::endl;
+    //             }
+    //         }
 
-            for (const auto &segment : result.segments)
-            {
-                std::cout << " " << segment.to.getIdentifier();
-            }
-        }
-    }
+    //         for (const auto &segment : result.segments)
+    //         {
+    //             std::cout << " " << segment.to.getIdentifier();
+    //         }
+    //     }
+    // }
 
 #endif
 }

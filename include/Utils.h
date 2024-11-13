@@ -43,6 +43,29 @@ namespace RouteParser
       }
     }
 
+    static std::optional<erkir::spherical::Point> ParseDataFilePoint(
+        std::string_view lat,
+        std::string_view lng)
+    {
+      double latitude, longitude;
+
+      try
+      {
+        latitude = std::stod(std::string(lat));
+        longitude = std::stod(std::string(lng));
+      }
+      catch (const std::invalid_argument &)
+      {
+        return std::nullopt;
+      }
+      catch (const std::out_of_range &)
+      {
+        return std::nullopt;
+      }
+
+      return erkir::spherical::Point(latitude, longitude);
+    }
+
     static void SplitAirwayFields(std::string_view line, std::vector<std::string_view> &fields)
     {
       fields.clear();

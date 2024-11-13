@@ -42,7 +42,7 @@ namespace RouteParser
                 continue;
             }
 
-            auto mainPoint = ParsePoint(fields[1], fields[2]);
+            auto mainPoint = Utils::ParseDataFilePoint(fields[1], fields[2]);
             if (!mainPoint)
             {
                 continue;
@@ -106,7 +106,7 @@ namespace RouteParser
             return std::nullopt;
         }
 
-        auto point = ParsePoint(fields[start_index + 1], fields[start_index + 2]);
+        auto point = Utils::ParseDataFilePoint(fields[start_index + 1], fields[start_index + 2]);
         if (!point)
         {
             return std::nullopt;
@@ -119,29 +119,6 @@ namespace RouteParser
             *point,
             fields[start_index + 4] == "Y",
             level};
-    }
-
-    std::optional<erkir::spherical::Point> AirwayParser::ParsePoint(
-        std::string_view lat,
-        std::string_view lng)
-    {
-        double latitude, longitude;
-
-        try
-        {
-            latitude = std::stod(std::string(lat));
-            longitude = std::stod(std::string(lng));
-        }
-        catch (const std::invalid_argument &)
-        {
-            return std::nullopt;
-        }
-        catch (const std::out_of_range &)
-        {
-            return std::nullopt;
-        }
-
-        return erkir::spherical::Point(latitude, longitude);
     }
 
     std::optional<uint32_t> AirwayParser::ParseLevel(std::string_view level)

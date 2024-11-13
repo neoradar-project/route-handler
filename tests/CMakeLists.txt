@@ -3,7 +3,7 @@ set (PROJECT_NAME router-handler-tests)
 include(CTest)
 enable_testing()
 
-set(TEST_USE_TESTDATA OFF)
+set(TEST_USE_TESTDATA ON)
 
 # CORE TESTS
 set(test_core
@@ -11,6 +11,7 @@ set(test_core
     core/RouteHandlerPerformanceTest.cpp
     core/Data/SampleNavdata.cpp
     core/AirwayParserTest.cpp
+    core/TestDataParserTest.cpp
 )
 
 # Configure Google Test

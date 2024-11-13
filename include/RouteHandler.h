@@ -20,11 +20,15 @@ public:
   void Bootstrap(ILogger logFunc,
                  std::unordered_multimap<std::string, Waypoint> waypoints,
                  std::unordered_multimap<std::string, Procedure> procedures,
-                 std::string airwaysFile)
+                 std::string airwaysFile, std::string isecFile = "")
   {
     Log::SetLogger(logFunc);
     NavdataObject::SetWaypoints(waypoints, procedures);
     NavdataObject::LoadAirwayNetwork(airwaysFile);
+    if (!isecFile.empty())
+    {
+      // NavdataObject::LoadIntersectionWaypoints(isecFile);
+    }
 
     Log::info("RouteHandler is ready.");
     this->isReady = true;

@@ -26,10 +26,6 @@ namespace RouteParser
             const std::vector<std::string_view> &fields,
             size_t start_index);
 
-        static std::optional<erkir::spherical::Point> ParsePoint(
-            std::string_view lat,
-            std::string_view lng);
-
         static std::optional<uint32_t> ParseLevel(std::string_view level);
     };
 
