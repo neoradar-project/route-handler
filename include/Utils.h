@@ -4,6 +4,7 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
+#include "absl/strings/str_join.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "types/ParsingError.h"
@@ -13,16 +14,22 @@
 #include "Regexes.h"
 namespace RouteParser
 {
-
   namespace Utils
   {
     static std::string CleanupRawRoute(std::string route)
     {
+      // First replace colons and commas with spaces
       route = absl::StrReplaceAll(route, {{":", " "}, {",", " "}});
+
+      // Strip leading/trailing whitespace
       route = absl::StripAsciiWhitespace(route);
-      return route;
+
+      // Split into tokens and rejoin with single spaces
+      std::vector<std::string> tokens = absl::StrSplit(route, absl::ByAnyChar(" \t"), absl::SkipEmpty());
+      return absl::StrJoin(tokens, " ");
     }
 
+    // Rest of the Utils namespace remains the same...
     static void InsertWaypointsAsRouteWaypoints(
         std::vector<RouteParser::RouteWaypoint> &waypoints,
         const std::vector<RouteParser::Waypoint> &parsedWaypoints,
@@ -84,20 +91,19 @@ namespace RouteParser
           waypoint.getFrequencyHz(), currentFlightRule, plannedPosition);
     }
 
-    static void
-    InsertParsingErrorIfNotDuplicate(std::vector<ParsingError> &parsingErrors,
-                                     const ParsingError &error)
+    static void InsertParsingErrorIfNotDuplicate(
+        std::vector<ParsingError> &parsingErrors,
+        const ParsingError &error)
     {
-      auto it =
-          std::find_if(parsingErrors.begin(), parsingErrors.end(),
-                       [&error](const ParsingError &existingError)
-                       {
-                         return existingError.level == error.level &&
-                                existingError.message == error.message &&
-                                existingError.tokenIndex == error.tokenIndex &&
-                                existingError.token == error.token &&
-                                existingError.type == error.type;
-                       });
+      auto it = std::find_if(parsingErrors.begin(), parsingErrors.end(),
+                             [&error](const ParsingError &existingError)
+                             {
+                               return existingError.level == error.level &&
+                                      existingError.message == error.message &&
+                                      existingError.tokenIndex == error.tokenIndex &&
+                                      existingError.token == error.token &&
+                                      existingError.type == error.type;
+                             });
       if (it == parsingErrors.end())
       {
         parsingErrors.push_back(error);
@@ -106,23 +112,17 @@ namespace RouteParser
 
     static WaypointType GetWaypointTypeByIdentifier(std::string identifier)
     {
-      if (
-          ctre::match<RouteParser::Regexes::RouteVOR>(
-              identifier))
+      if (ctre::match<RouteParser::Regexes::RouteVOR>(identifier))
       {
         return WaypointType::VOR;
       }
 
-      if (
-          ctre::match<RouteParser::Regexes::RouteNDB>(
-              identifier))
+      if (ctre::match<RouteParser::Regexes::RouteNDB>(identifier))
       {
         return WaypointType::NDB;
       }
 
-      if (
-          ctre::match<RouteParser::Regexes::RouteFIX>(
-              identifier))
+      if (ctre::match<RouteParser::Regexes::RouteFIX>(identifier))
       {
         return WaypointType::FIX;
       }

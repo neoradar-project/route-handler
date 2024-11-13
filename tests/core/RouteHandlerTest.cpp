@@ -51,15 +51,26 @@ namespace RouteHandlerTests
   TEST_F(RouteHandlerTest, BasicRouteWithSIDAndSTAR)
   {
     auto parsedRoute = handler.GetParser()->ParseRawRoute(
-        "TES61X/06 TESIG A470 DOTMI DCT ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
+        "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
 
     EXPECT_BASIC_ROUTE(parsedRoute);
     EXPECT_EQ(parsedRoute.rawRoute,
-              "TES61X/06 TESIG A470 DOTMI DCT ABBEY ABBEY3A/07R");
+              "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
     EXPECT_EQ(parsedRoute.totalTokens, 7);
   }
 
   TEST_F(RouteHandlerTest, BasicRouteWithSIDAndSTARNotTraversable)
+  {
+    auto parsedRoute = handler.GetParser()->ParseRawRoute(
+        "ABBEY V512 DOTMI A470 TESIG", "ZSNJ", "VHHH");
+
+    EXPECT_EQ(parsedRoute.rawRoute,
+              "ABBEY V512 DOTMI A470 TESIG");
+    EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::INVALID_AIRWAY_DIRECTION, 2);
+    EXPECT_EQ(parsedRoute.totalTokens, 5);
+  }
+
+  TEST_F(RouteHandlerTest, BasicRouteNoSIDAndStarNotTraversable)
   {
     auto parsedRoute = handler.GetParser()->ParseRawRoute(
         "TES61X/06 ABBEY V512 DOTMI A470 TESIG ABBEY3A/07R", "ZSNJ", "VHHH");

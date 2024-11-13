@@ -259,13 +259,12 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
     // Check if token is a known airway
     bool isAirway = std::find(availableAirways.begin(), availableAirways.end(), token) != availableAirways.end();
 
-    if (isAirway && i > 0 && i < routeParts.size() - 1 && previousWaypoint.has_value())
+    if (isAirway && i > 0 && i < routeParts.size() && previousWaypoint.has_value())
     {
       const auto &nextToken = routeParts[i + 1];
       // Verify next token isn't a SID/STAR (no '/')
       if (token.find('/') == std::string::npos &&
-          nextToken.find('/') == std::string::npos &&
-          i + 1 < routeParts.size() - 1)
+          nextToken.find('/') == std::string::npos)
       {
         if (this->ParseAirway(parsedRoute, i, token, previousWaypoint,
                               nextToken, currentFlightRule))
@@ -416,7 +415,6 @@ bool RouteParser::ParserHandler::ParseAirway(
   }
 
   // First verify this looks like an airway identifier
-  // Usually airways are 1-3 letters followed by 1-3 numbers: A1, UL124, etc.
   if (token.empty() || !std::isalpha(token[0]))
   {
     return false;
@@ -428,17 +426,18 @@ bool RouteParser::ParserHandler::ParseAirway(
   {
     return false; // Next token isn't a valid waypoint
   }
+
   auto airwaySegments = NavdataObject::GetAirwayNetwork().validateAirwayTraversal(
       previousWaypoint->getIdentifier(), token, nextToken.value(), 99999,
       previousWaypoint->getPosition());
 
-  // Add any errors from airway validation
+  // Process any errors from airway validation
   for (const auto &error : airwaySegments.errors)
   {
     // Modify error to use correct index and token
     ParsingError modifiedError = error;
     modifiedError.token = token;
-    modifiedError.level = ERROR; // Change error level to INFO
+    modifiedError.level = ERROR;
     modifiedError.type = error.type;
     Utils::InsertParsingErrorIfNotDuplicate(parsedRoute.errors, modifiedError);
   }
@@ -448,14 +447,13 @@ bool RouteParser::ParserHandler::ParseAirway(
   {
     for (const auto &segment : airwaySegments.segments)
     {
-      // parsedRoute.waypoints.push_back(
-      //     Utils::WaypointToRouteWaypoint(segment, currentFlightRule));
+      parsedRoute.waypoints.push_back(
+          Utils::WaypointToRouteWaypoint(nextWaypoint.value(), currentFlightRule));
     }
     return true;
   }
 
-  // If we have the right waypoint sequence but no segments, it might be a valid airway
-  // that just isn't in our test data
+  // If we have the right waypoint sequence but no segments
   if (nextWaypoint)
   {
     parsedRoute.waypoints.push_back(
