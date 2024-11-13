@@ -10,3 +10,6 @@
 [submodule "extern/abseil-cpp"]
 	path = extern/abseil-cpp
 	url = https://github.com/abseil/abseil-cpp.git
+[submodule "extern/mio"]
+	path = extern/mio
+	url = https://github.com/vimpunk/mio.git
