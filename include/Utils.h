@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include "Regexes.h"
+#include <ctre.hpp>
 namespace RouteParser
 {
   namespace Utils
@@ -144,7 +145,6 @@ namespace RouteParser
       {
         return WaypointType::NDB;
       }
-
       if (ctre::match<RouteParser::Regexes::RouteFIX>(identifier))
       {
         return WaypointType::FIX;

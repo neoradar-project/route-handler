@@ -4,6 +4,7 @@
 #include <string_view>
 #include "Utils.h"
 #include "Navdata.h"
+
 namespace RouteParser
 {
 
@@ -20,8 +21,13 @@ namespace RouteParser
         AirwayNetwork network;
         bool valid_data = false;
 
-        for (std::string_view line : absl::StrSplit(content, '\n', absl::SkipEmpty()))
+        size_t start = 0;
+        size_t end = 0;
+        while ((end = content.find('\n', start)) != std::string_view::npos)
         {
+            std::string_view line = content.substr(start, end - start);
+            start = end + 1;
+
             if (line.empty() || line[0] == ';' || absl::StripAsciiWhitespace(line).empty())
             {
                 continue;

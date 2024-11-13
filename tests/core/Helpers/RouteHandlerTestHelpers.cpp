@@ -1,4 +1,5 @@
 #include "types/ParsedRoute.h"
+#include "types/ParsingError.h" // Add this line to include the enums
 #include <fmt/color.h>
 #include <fmt/core.h>
 #include <gtest/gtest.h>

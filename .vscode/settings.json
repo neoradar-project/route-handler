@@ -97,6 +97,7 @@
     "cinttypes": "cpp",
     "cwctype": "cpp",
     "scoped_allocator": "cpp",
-    "valarray": "cpp"
+    "valarray": "cpp",
+    "resumable": "cpp"
   }
 }

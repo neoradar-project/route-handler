@@ -4,7 +4,7 @@ project(route-handler VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_EXTENSIONS ON)
 foreach(OUTPUT_CONFIG DEBUG RELEASE)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${OUTPUT_CONFIG} ${CMAKE_BINARY_DIR}/${OUTPUT_CONFIG})
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${OUTPUT_CONFIG} ${CMAKE_BINARY_DIR}/${OUTPUT_CONFIG})
@@ -25,6 +25,7 @@ add_library(route-handler STATIC)
 add_subdirectory(extern/erkir)
 add_subdirectory(extern/fmt)
 add_subdirectory(extern/abseil-cpp)
+add_subdirectory(extern/mio)
 
 target_sources(route-handler
     PRIVATE
@@ -49,6 +50,7 @@ target_link_libraries(route-handler
         fmt
         absl::strings
         absl::flat_hash_map
+        mio
         
 )
 

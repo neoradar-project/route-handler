@@ -1,4 +1,5 @@
 #include "Parser.h"
+#include "types/ParsedRoute.h" // Ensure this header is included
 #include "Log.h"
 #include "Navdata.h"
 #include "SidStarParser.h"
