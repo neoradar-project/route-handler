@@ -171,7 +171,7 @@ namespace RouteHandlerTests
         EXPECT_EQ(result.errors[0].message, "Cannot traverse airway Y6 from BANEM to SUMUM");
 
         {
-            result = network->validateRoute("ULTIB T420 TNT UN57 POL UN601 RIBEL P16 GASKO P18 NATEB");
+            result = network->validateRoute("BARAD M747 SUBUT T916 LEYLA N161 SARIN A368 FKG W192 ESDEX W191 DNC W565 XIXAN B330 KWE W181 DUDIT A599 POU R473 SIERA");
 
             if (!result.errors.empty())
             {
@@ -183,7 +183,7 @@ namespace RouteHandlerTests
 
             for (const auto &segment : result.segments)
             {
-                std::cout << segment.from.getIdentifier() << " -> " << segment.to.getIdentifier() << std::endl;
+                std::cout << " " << segment.to.getIdentifier();
             }
         }
     }

@@ -77,12 +77,12 @@ static void EXPECT_PARSE_ERROR_OF_TYPE(const ParsedRoute &parsedRoute,
 
 static void EXPECT_BASIC_ROUTE(ParsedRoute parsedRoute)
 {
-  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::INFO, 4);
+  EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::INFO, 0);
   EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::ERROR, 0);
   EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_WAYPOINT,
-                             2);
+                             0);
   EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::UNKNOWN_PROCEDURE,
-                             2);
+                             0);
 
   EXPECT_EQ(parsedRoute.SID, "TES61X");
   EXPECT_EQ(parsedRoute.departureRunway, "06");

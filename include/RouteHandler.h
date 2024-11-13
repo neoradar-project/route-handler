@@ -10,7 +10,8 @@
 
 using namespace RouteParser;
 
-class RouteHandler {
+class RouteHandler
+{
 public:
   RouteHandler() { this->Parser = std::make_shared<RouteParser::ParserHandler>(); }
   ~RouteHandler() { this->Parser.reset(); }
@@ -18,9 +19,12 @@ public:
   std::shared_ptr<ParserHandler> GetParser();
   void Bootstrap(ILogger logFunc,
                  std::unordered_multimap<std::string, Waypoint> waypoints,
-                 std::unordered_multimap<std::string, Procedure> procedures) {
+                 std::unordered_multimap<std::string, Procedure> procedures,
+                 std::string airwaysFile)
+  {
     Log::SetLogger(logFunc);
     NavdataObject::SetWaypoints(waypoints, procedures);
+    NavdataObject::LoadAirwayNetwork(airwaysFile);
 
     Log::info("RouteHandler is ready.");
     this->isReady = true;

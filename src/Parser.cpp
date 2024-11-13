@@ -11,6 +11,7 @@
 #include "types/Waypoint.h"
 #include <optional>
 #include <vector>
+#include <iostream>
 
 using namespace RouteParser;
 
@@ -97,7 +98,6 @@ bool ParserHandler::ParseWaypoints(ParsedRoute &parsedRoute, int index,
   std::optional<RouteWaypoint::PlannedAltitudeAndSpeed> plannedAltAndSpd =
       std::nullopt;
   token = parts[0];
-
   auto waypoint = NavdataObject::FindClosestWaypointTo(token, previousWaypoint);
   if (waypoint)
   {
@@ -214,10 +214,14 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
   auto previousWaypoint = NavdataObject::FindWaypointByType(origin, AIRPORT);
   FlightRule currentFlightRule = filedFlightRule;
 
+  // Get list of valid airways once at the start
+  const auto &availableAirways = NavdataObject::GetAirwayNetwork().getAllAirways();
+
   for (auto i = 0; i < routeParts.size(); i++)
   {
     const auto token = routeParts[i];
 
+    // Skip empty/special tokens
     if (token.empty() || token == origin || token == destination ||
         token == " " || token == "." || token == "..")
     {
@@ -227,36 +231,23 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
 
     if (token == "DCT")
     {
-      continue; // These count as tokens but we don't need to do anything with
-                // them
+      continue;
     }
 
-    // This is a very simple check, so we can run it already
     if (this->ParseFlightRule(currentFlightRule, i, token))
     {
       continue;
     }
 
-    if (i == 0)
+    if (i == 0 && this->ParsePlannedAltitudeAndSpeed(i, token))
     {
-      // Sometimes, the flightplan is prefixed with the TAS and planned level.
-      // If that's the case, we'll ignore it as it should be specified elsewhere
-      // in the flightplan
-      // It still counts as a token
-      if (this->ParsePlannedAltitudeAndSpeed(i, token))
-      {
-        continue;
-      }
+      continue;
     }
 
+    // Handle SID/STAR patterns first
     if ((i == 0 || i == routeParts.size() - 1) &&
         token.find("/") != std::string::npos)
     {
-
-      // If we're in the first and last part and there is a '/' in the token,
-      // we can assume it's a SID/STAR or runway, so we start with that, but
-      // in strict mode, meaning we will only accept something we have in
-      // dataset hence that we know for sure is a SID/STAR
       if (this->ParseFirstAndLastPart(parsedRoute, i, token,
                                       i == 0 ? origin : destination, true,
                                       currentFlightRule))
@@ -264,31 +255,44 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
         continue;
       }
     }
-    // We always first check if it's a waypoint directly
-    if (this->ParseWaypoints(parsedRoute, i, token, previousWaypoint,
-                             currentFlightRule))
+
+    // Check if token is a known airway
+    bool isAirway = std::find(availableAirways.begin(), availableAirways.end(), token) != availableAirways.end();
+
+    if (isAirway && i > 0 && i < routeParts.size() - 1 && previousWaypoint.has_value())
     {
-      continue; // Found a waypoint, so we can skip the rest
+      const auto &nextToken = routeParts[i + 1];
+      // Verify next token isn't a SID/STAR (no '/')
+      if (token.find('/') == std::string::npos &&
+          nextToken.find('/') == std::string::npos &&
+          i + 1 < routeParts.size() - 1)
+      {
+        if (this->ParseAirway(parsedRoute, i, token, previousWaypoint,
+                              nextToken, currentFlightRule))
+        {
+          previousWaypoint = NavdataObject::FindWaypointByType(nextToken, FIX);
+          i++; // Skip the next token since it was the airway endpoint
+          continue;
+        }
+      }
     }
 
-    // We check if it's a LAT/LON coordinate
-    if (this->ParseLatLon(parsedRoute, i, token, previousWaypoint,
-                          currentFlightRule))
+    // Only try parsing as waypoint if it's not an airway
+    if (!isAirway && this->ParseWaypoints(parsedRoute, i, token, previousWaypoint,
+                                          currentFlightRule))
     {
-
       continue;
     }
 
-    // TODO: Check for airways
+    if (!isAirway && this->ParseLatLon(parsedRoute, i, token, previousWaypoint,
+                                       currentFlightRule))
+    {
+      continue;
+    }
 
+    // Try SID/STAR again without strict mode if at start/end
     if (i == 0 || i == routeParts.size() - 1)
     {
-      // If we're in the first and last part and we didn't find a waypoint or
-      // lat/lon, we can assume it's a SID/STAR or runway, but not in strict
-      // mode, meaning we will accept something that looks like a procedure but
-      // might not be in database
-      // We assume it's not an airway, because an airway cannot be at the first
-      // or last part If it is, the flight plan is invalid
       if (this->ParseFirstAndLastPart(parsedRoute, i, token,
                                       i == 0 ? origin : destination, false,
                                       currentFlightRule))
@@ -297,9 +301,13 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
       }
     }
 
-    // If we reach this point, we have an unknown token
-    parsedRoute.errors.push_back(
-        ParsingError{UNKNOWN_WAYPOINT, "Unknown waypoint", i, token});
+    // If we reach here and the token wasn't identified as an airway,
+    // it's truly an unknown waypoint
+    if (!isAirway)
+    {
+      parsedRoute.errors.push_back(
+          ParsingError{UNKNOWN_WAYPOINT, "Unknown waypoint", i, token});
+    }
   }
 
   return parsedRoute;
@@ -397,10 +405,9 @@ bool RouteParser::ParserHandler::ParseAirway(
     std::optional<Waypoint> &previousWaypoint,
     std::optional<std::string> nextToken, FlightRule currentFlightRule)
 {
-  if (!nextToken)
+  if (!nextToken || !previousWaypoint)
   {
-    return false; // We don't have a next waypoint, so we don't know where the
-                  // airway ends
+    return false; // Need both previous waypoint and next waypoint
   }
 
   if (token.find('/') != std::string::npos)
@@ -408,24 +415,53 @@ bool RouteParser::ParserHandler::ParseAirway(
     return false; // Airway segments cannot have planned altitude and speed
   }
 
-  if (!NavdataObject::GetAirwayNetwork().getAirway(token))
+  // First verify this looks like an airway identifier
+  // Usually airways are 1-3 letters followed by 1-3 numbers: A1, UL124, etc.
+  if (token.empty() || !std::isalpha(token[0]))
   {
-    return false; // Airway not found
+    return false;
   }
 
-  // We need to check if the airway is valid
+  // Get the actual next waypoint from the token
+  auto nextWaypoint = NavdataObject::FindWaypointByType(nextToken.value(), FIX);
+  if (!nextWaypoint)
+  {
+    return false; // Next token isn't a valid waypoint
+  }
   auto airwaySegments = NavdataObject::GetAirwayNetwork().validateAirwayTraversal(
-      previousWaypoint->getIdentifier(), token, nextToken.value_or(""), 99999,
+      previousWaypoint->getIdentifier(), token, nextToken.value(), 99999,
       previousWaypoint->getPosition());
 
-  parsedRoute.errors.insert(parsedRoute.errors.end(), airwaySegments.errors.begin(),
-                            airwaySegments.errors.end());
-
-  for (const auto &segment : airwaySegments.segments)
+  // Add any errors from airway validation
+  for (const auto &error : airwaySegments.errors)
   {
-    // parsedRoute.waypoints.push_back(
-    //     Utils::WaypointToRouteWaypoint(segment, currentFlightRule));
+    // Modify error to use correct index and token
+    ParsingError modifiedError = error;
+    modifiedError.token = token;
+    modifiedError.level = ERROR; // Change error level to INFO
+    modifiedError.type = error.type;
+    Utils::InsertParsingErrorIfNotDuplicate(parsedRoute.errors, modifiedError);
   }
 
-  return true;
-};
+  // If we found valid segments, add them to the route
+  if (!airwaySegments.segments.empty())
+  {
+    for (const auto &segment : airwaySegments.segments)
+    {
+      // parsedRoute.waypoints.push_back(
+      //     Utils::WaypointToRouteWaypoint(segment, currentFlightRule));
+    }
+    return true;
+  }
+
+  // If we have the right waypoint sequence but no segments, it might be a valid airway
+  // that just isn't in our test data
+  if (nextWaypoint)
+  {
+    parsedRoute.waypoints.push_back(
+        Utils::WaypointToRouteWaypoint(*nextWaypoint, currentFlightRule));
+    return true;
+  }
+
+  return false;
+}

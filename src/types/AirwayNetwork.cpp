@@ -371,10 +371,10 @@ namespace RouteParser
                                       std::string(airwayLevelToString(level)) + " airway requires FL" + std::to_string(maxRequiredLevel),
                                       0, "", INFO});
                 }
-                catch (const InvalidAirwayDirectionException &)
+                catch (const InvalidAirwayDirectionException &e)
                 {
                     errors.push_back({INVALID_AIRWAY_DIRECTION,
-                                      std::string("Cannot traverse ") + airwayLevelToString(level) + " airway in this direction",
+                                      e.what(),
                                       0, "", INFO});
                 }
             }

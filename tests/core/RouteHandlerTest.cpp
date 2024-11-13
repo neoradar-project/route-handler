@@ -8,6 +8,7 @@
 #include <fmt/core.h>
 #include <gtest/gtest.h>
 #include <optional>
+#include <iostream>
 using namespace RouteParser;
 
 namespace RouteHandlerTests
@@ -27,7 +28,12 @@ namespace RouteHandlerTests
         // fmt::print(fg(fmt::color::yellow), "[{}] {}\n", level, msg);
         // Ignore log messages in tests
       };
-      handler.Bootstrap(logFunc, Data::SmallWaypointsList, {});
+      handler.Bootstrap(logFunc, Data::SmallWaypointsList, Data::SmallProceduresList, {});
+      auto network = AirwayParser::ParseAirwayTxt(Data::SmallAirwayList);
+      if (network.has_value())
+      {
+        NavdataObject::SetAirwayNetwork(network.value());
+      }
     }
   };
 
@@ -45,11 +51,22 @@ namespace RouteHandlerTests
   TEST_F(RouteHandlerTest, BasicRouteWithSIDAndSTAR)
   {
     auto parsedRoute = handler.GetParser()->ParseRawRoute(
-        "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
+        "TES61X/06 TESIG A470 DOTMI DCT ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
 
     EXPECT_BASIC_ROUTE(parsedRoute);
     EXPECT_EQ(parsedRoute.rawRoute,
-              "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
+              "TES61X/06 TESIG A470 DOTMI DCT ABBEY ABBEY3A/07R");
+    EXPECT_EQ(parsedRoute.totalTokens, 7);
+  }
+
+  TEST_F(RouteHandlerTest, BasicRouteWithSIDAndSTARNotTraversable)
+  {
+    auto parsedRoute = handler.GetParser()->ParseRawRoute(
+        "TES61X/06 ABBEY V512 DOTMI A470 TESIG ABBEY3A/07R", "ZSNJ", "VHHH");
+
+    EXPECT_EQ(parsedRoute.rawRoute,
+              "TES61X/06 ABBEY V512 DOTMI A470 TESIG ABBEY3A/07R");
+    EXPECT_PARSE_ERROR_OF_TYPE(parsedRoute, ParsingErrorType::INVALID_AIRWAY_DIRECTION, 2);
     EXPECT_EQ(parsedRoute.totalTokens, 7);
   }
 

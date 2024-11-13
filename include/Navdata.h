@@ -74,7 +74,7 @@ namespace RouteParser
       }
     }
 
-    static const std::unordered_multimap<std::string, Waypoint> &GetWaypoints()
+    static const std::unordered_multimap<std::string, Waypoint> GetWaypoints()
     {
       std::lock_guard<std::mutex> lock(_mutex);
       return waypoints;
@@ -114,6 +114,15 @@ namespace RouteParser
     static AirwayNetwork GetAirwayNetwork()
     {
       std::lock_guard<std::mutex> lock(_mutex);
+      return airwayNetwork;
+    }
+
+    /* Used for testing */
+
+    static AirwayNetwork SetAirwayNetwork(AirwayNetwork network)
+    {
+      std::lock_guard<std::mutex> lock(_mutex);
+      airwayNetwork = network;
       return airwayNetwork;
     }
 
