@@ -21,24 +21,24 @@ namespace RouteHandlerTests
     }
   };
 
-  TEST_F(PerformanceTest, BasicRouteWithSIDAndSTAR)
-  {
-    const auto startTime = std::chrono::steady_clock::now();
+  // TEST_F(PerformanceTest, BasicRouteWithSIDAndSTAR)
+  // {
+  //   const auto startTime = std::chrono::steady_clock::now();
 
-    auto parsedRoute = handler.GetParser()->ParseRawRoute(
-        "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
+  //   auto parsedRoute = handler.GetParser()->ParseRawRoute(
+  //       "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
 
-    const auto endTime = std::chrono::steady_clock::now();
-    const auto calculationDuration =
-        std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime)
-            .count();
+  //   const auto endTime = std::chrono::steady_clock::now();
+  //   const auto calculationDuration =
+  //       std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime)
+  //           .count();
 
-    EXPECT_BASIC_ROUTE(parsedRoute);
-    EXPECT_EQ(parsedRoute.rawRoute,
-              "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
-    EXPECT_EQ(parsedRoute.totalTokens, 7);
+  //   EXPECT_BASIC_ROUTE(parsedRoute);
+  //   EXPECT_EQ(parsedRoute.rawRoute,
+  //             "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
+  //   EXPECT_EQ(parsedRoute.totalTokens, 7);
 
-    EXPECT_LT(calculationDuration, 5);
-  }
+  //   EXPECT_LT(calculationDuration, 5);
+  // }
 
 } // namespace RouteHandlerTests

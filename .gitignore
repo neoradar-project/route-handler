@@ -58,5 +58,4 @@ build/
 
 .cache/
 .DS_Store
-tests/testdata/*
 !tests/testdata/readme.txt

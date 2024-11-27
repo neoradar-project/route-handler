@@ -26,6 +26,7 @@ namespace RouteParser
 
     private:
         std::string join(const std::vector<std::string> &vec, const std::string &delimiter);
+        bool isInitialized = false;
     };
 }
 

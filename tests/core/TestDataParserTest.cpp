@@ -9,7 +9,7 @@
 #include <gtest/gtest.h>
 #include <optional>
 #include <iostream>
-#include "AirwayValidator.h"
+#include "AirwayNetwork.h"
 using namespace RouteParser;
 
 namespace RouteHandlerTests
@@ -29,7 +29,7 @@ namespace RouteHandlerTests
                 // fmt::print(fg(fmt::color::yellow), "[{}] {}\n", level, msg);
                 // Ignore log messages in tests
             };
-            // handler.Bootstrap(logFunc, {}, Data::SmallProceduresList, "testdata/airways.txt", "testdata/isec.txt");
+            handler.Bootstrap(logFunc, Data::SmallWaypointsList, Data::SmallProceduresList, "testdata/real-airways.db");
         }
     };
 
@@ -41,36 +41,6 @@ namespace RouteHandlerTests
         // PRINT_ALL_PARSING_ERRORS(parsedRoute);
 
         // EXPECT_EQ(parsedRoute.totalTokens, 59);
-
-        std::vector<std::tuple<std::string, std::string, std::string, int>> testCases = {
-            {"SUMUM", "Y6", "IDESI", 40000},
-            // Add more test cases as needed
-        };
-
-        for (const auto &[start, awy, end, fl] : testCases)
-        {
-            std::cout << "\nValidating: " << start << " -> " << awy << " -> " << end << " at " << fl << std::endl;
-            auto startTime = std::chrono::high_resolution_clock::now();
-            ValidationResult result = validator.validateAirwayTraversal(start, awy, end, fl);
-            auto endTime = std::chrono::high_resolution_clock::now();
-            auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime).count();
-
-            if (result.isValid)
-            {
-                std::cout << "✅ Route is valid" << std::endl;
-                std::cout << "Minimum level required: " << result.minimumRequiredLevel << std::endl;
-            }
-            else
-            {
-                std::cout << "❌ Route is invalid:" << std::endl;
-                for (const auto &error : result.errors)
-                {
-                    std::cout << "  " << error << std::endl;
-                }
-            }
-
-            std::cout << "Validation took " << elapsedTime << " ms" << std::endl;
-        }
     }
 
 } // namespace RouteHandlerTests

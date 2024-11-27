@@ -8,7 +8,28 @@
 
 namespace RouteParser
 {
-    AirwayNetwork::AirwayNetwork(const std::string &dbPath) : db(dbPath, SQLite::OPEN_READONLY) {}
+    AirwayNetwork::AirwayNetwork(const std::string &dbPath) : db(":memory:", SQLite::OPEN_READWRITE)
+    {
+        try
+        {
+            // Check if file exists
+            std::ifstream f(dbPath.c_str());
+            if (!f.good())
+            {
+                std::cerr << "Database file not found: " << dbPath << std::endl;
+                return;
+            }
+            f.close();
+
+            // If file exists, open it
+            db = SQLite::Database(dbPath, SQLite::OPEN_READONLY);
+            isInitialized = true;
+        }
+        catch (const SQLite::Exception &e)
+        {
+            std::cerr << "Failed to open database: " << e.what() << std::endl;
+        }
+    }
 
     struct AirwayGraph
     {
@@ -19,7 +40,13 @@ namespace RouteParser
     RouteValidationResult AirwayNetwork::validateAirwayTraversal(const Waypoint &startFix, const std::string &airway, const std::string &endFix, int flightLevel)
     {
         RouteValidationResult result;
-        result.isValid = true;
+        result.isValid = false;
+
+        if (!isInitialized)
+        {
+            result.errors.push_back({INVALID_DATA, "Database not initialized", 0, "", ERROR});
+            return result;
+        }
 
         try
         {
@@ -166,6 +193,10 @@ namespace RouteParser
 
     bool AirwayNetwork::airwayExists(const std::string &airwayName)
     {
+        if (!isInitialized)
+        {
+            return false;
+        }
         try
         {
             SQLite::Statement stmt(db, "SELECT COUNT(*) FROM airways WHERE name = ?");

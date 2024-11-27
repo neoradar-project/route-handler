@@ -270,7 +270,8 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
         if (this->ParseAirway(parsedRoute, i, token, previousWaypoint,
                               nextToken, currentFlightRule))
         {
-          previousWaypoint = NavdataObject::FindWaypointByType(nextToken, FIX);
+
+          previousWaypoint = NavdataObject::FindClosestWaypointTo(nextToken, previousWaypoint);
           i++; // Skip the next token since it was the airway endpoint
           continue;
         }
@@ -439,6 +440,7 @@ bool RouteParser::ParserHandler::ParseAirway(
     modifiedError.token = token;
     modifiedError.level = ERROR;
     modifiedError.type = error.type;
+
     Utils::InsertParsingErrorIfNotDuplicate(parsedRoute.errors, modifiedError);
   }
 
@@ -448,7 +450,7 @@ bool RouteParser::ParserHandler::ParseAirway(
     for (const auto &segment : airwaySegments.segments)
     {
       parsedRoute.waypoints.push_back(
-          Utils::WaypointToRouteWaypoint(segment.to, currentFlightRule));
+          Utils::WaypointToRouteWaypoint(nextWaypoint.value(), currentFlightRule));
     }
     return true;
   }
