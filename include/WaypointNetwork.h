@@ -42,6 +42,7 @@ namespace RouteParser
             }
             catch (const SQLite::Exception &e)
             {
+                Log::error("Error opening database: {}", e.what());
                 return false;
             }
         }
