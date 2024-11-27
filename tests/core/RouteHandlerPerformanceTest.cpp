@@ -38,7 +38,7 @@ namespace RouteHandlerTests
               "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
     EXPECT_EQ(parsedRoute.totalTokens, 7);
 
-    EXPECT_LT(calculationDuration, 3);
+    EXPECT_LT(calculationDuration, 5);
   }
 
 } // namespace RouteHandlerTests

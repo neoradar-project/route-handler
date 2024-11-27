@@ -13,6 +13,7 @@
 #include <optional>
 #include <vector>
 #include <iostream>
+#include "types/Waypoint.h"
 
 using namespace RouteParser;
 
@@ -216,7 +217,6 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
   FlightRule currentFlightRule = filedFlightRule;
 
   // Get list of valid airways once at the start
-  const auto &availableAirways = NavdataObject::GetAirwayNetwork().getAllAirways();
 
   for (auto i = 0; i < routeParts.size(); i++)
   {
@@ -258,7 +258,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
     }
 
     // Check if token is a known airway
-    bool isAirway = std::find(availableAirways.begin(), availableAirways.end(), token) != availableAirways.end();
+    bool isAirway = NavdataObject::GetAirwayNetwork()->airwayExists(token);
 
     if (isAirway && i > 0 && i < routeParts.size() && previousWaypoint.has_value())
     {
@@ -422,15 +422,14 @@ bool RouteParser::ParserHandler::ParseAirway(
   }
 
   // Get the actual next waypoint from the token
-  auto nextWaypoint = NavdataObject::FindWaypointByType(nextToken.value(), FIX);
+  auto nextWaypoint = NavdataObject::FindClosestWaypointTo(nextToken.value(), previousWaypoint);
   if (!nextWaypoint)
   {
     return false; // Next token isn't a valid waypoint
   }
 
-  auto airwaySegments = NavdataObject::GetAirwayNetwork().validateAirwayTraversal(
-      previousWaypoint->getIdentifier(), token, nextToken.value(), 99999,
-      previousWaypoint->getPosition());
+  auto airwaySegments = NavdataObject::GetAirwayNetwork()->validateAirwayTraversal(
+      previousWaypoint.value(), token, nextToken.value(), 99999);
 
   // Process any errors from airway validation
   for (const auto &error : airwaySegments.errors)
@@ -449,7 +448,7 @@ bool RouteParser::ParserHandler::ParseAirway(
     for (const auto &segment : airwaySegments.segments)
     {
       parsedRoute.waypoints.push_back(
-          Utils::WaypointToRouteWaypoint(nextWaypoint.value(), currentFlightRule));
+          Utils::WaypointToRouteWaypoint(segment.to, currentFlightRule));
     }
     return true;
   }

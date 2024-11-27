@@ -19,7 +19,11 @@ namespace RouteParser
   class Waypoint
   {
   public:
-    Waypoint();
+    Waypoint()
+        : type(UNKNOWN), frequencyHz(0)
+    {
+      // Initialize the default values for the member variables
+    }
 
     Waypoint(WaypointType type, std::string identifier,
              erkir::spherical::Point position, int frequencyHz = 0)

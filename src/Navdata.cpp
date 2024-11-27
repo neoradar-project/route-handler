@@ -1,43 +1,24 @@
 #include "Navdata.h"
 #include <map>
 #include <mio/mmap.hpp>
+#include <memory>
 
 using namespace RouteParser;
 
 NavdataObject::NavdataObject()
 {
+  waypointNetwork = std::make_shared<WaypointNetwork>();
 }
 
 void NavdataObject::LoadAirwayNetwork(std::string airwaysFilePath)
 {
-  try
+  if (!waypointNetwork)
   {
-    if (!std::filesystem::exists(airwaysFilePath))
-    {
-      Log::error("Airways file does not exist: {}", airwaysFilePath);
-      return;
-    }
-
-    // Memory map the file
-    mio::mmap_source mmap(airwaysFilePath);
-    std::string_view content(mmap.data(), mmap.size());
-
-    const auto parsed = AirwayParser::ParseAirwayTxt(content);
-
-    if (!parsed)
-    {
-      std::cout << "Failed to parse airways" << std::endl;
-      Log::error("Error parsing airways file: {}", airwaysFilePath);
-      return;
-    }
-
-    std::lock_guard<std::mutex> lock(_mutex);
-    airwayNetwork = parsed.value();
+    waypointNetwork = std::make_shared<WaypointNetwork>();
   }
-  catch (std::exception &e)
-  {
-    Log::error("Error loading airways: {}", e.what());
-  }
+  waypointNetwork->addProvider(std::make_unique<AirwayWaypointProvider>(
+      airwaysFilePath, "Airways DB"));
+  airwayNetwork = std::make_shared<AirwayNetwork>(airwaysFilePath);
 }
 
 void NavdataObject::LoadIntersectionWaypoints(std::string isecFilePath)
@@ -52,64 +33,77 @@ void NavdataObject::LoadIntersectionWaypoints(std::string isecFilePath)
 
     // Memory map the file
     mio::mmap_source mmap(isecFilePath);
-    const char *fileData = mmap.data();
-    size_t fileSize = mmap.size();
+    const char *data = mmap.data();
+    const char *end = data + mmap.size();
 
-    // Reserve space in waypoints map to avoid rehashing
-    constexpr size_t ESTIMATED_WAYPOINTS = 10000;
-    std::lock_guard<std::mutex> lock(_mutex);
-    size_t currentSize = waypoints.size();
-    waypoints.reserve(currentSize + ESTIMATED_WAYPOINTS);
+    // Pre-allocate vector for batch insertion
+    std::vector<std::pair<std::string, Waypoint>> batch_waypoints;
+    batch_waypoints.reserve(300000); // Increased reservation based on file size
 
-    std::string_view fileView(fileData, fileSize);
-    std::vector<std::string_view> fields;
-    fields.reserve(5); // Preallocate fields vector
+    const char *line_start = data;
+    const char *line_end;
 
-    // Process file line by line without loading entire file
-    size_t start = 0;
-    size_t end = 0;
-    while ((end = fileView.find('\n', start)) != std::string_view::npos)
+    while (line_start < end && (line_end = static_cast<const char *>(memchr(line_start, '\n', end - line_start))))
     {
-      std::string_view line = fileView.substr(start, end - start);
-      start = end + 1;
-
-      if (line.empty() || line[0] == ';')
-        continue;
-
-      fields.clear();
-      size_t tab = 0;
-      size_t fieldStart = 0;
-
-      // Manual tab splitting (faster than StrSplit)
-      while ((tab = line.find('\t', fieldStart)) != std::string_view::npos && fields.size() < 3)
+      if (*line_start == ';' || line_start == line_end)
       {
-        fields.push_back(line.substr(fieldStart, tab - fieldStart));
-        fieldStart = tab + 1;
+        line_start = line_end + 1;
+        continue;
       }
-      if (fields.size() < 3)
+
+      // Fast field extraction using pointers
+      const char *tab1 = static_cast<const char *>(memchr(line_start, '\t', line_end - line_start));
+      if (!tab1)
         continue;
 
-      // Fast string to double conversion
-      char *endPtr;
-      double lat = std::strtod(std::string(fields[1]).c_str(), &endPtr);
-      if (*endPtr != '\0')
+      const char *tab2 = static_cast<const char *>(memchr(tab1 + 1, '\t', line_end - (tab1 + 1)));
+      if (!tab2)
         continue;
 
-      double lon = std::strtod(std::string(fields[2]).c_str(), &endPtr);
-      if (*endPtr != '\0')
+      // Extract identifier
+      std::string_view identifier(line_start, tab1 - line_start);
+
+      // Fast number parsing using from_chars
+      double lat, lon;
+      const char *num_start = tab1 + 1;
+      const char *num_end = tab2;
+      std::from_chars_result lat_result = std::from_chars(num_start, num_end, lat);
+      if (lat_result.ec != std::errc{})
         continue;
 
-      // Create waypoint and insert directly
+      num_start = tab2 + 1;
+      num_end = line_end;
+      std::from_chars_result lon_result = std::from_chars(num_start, num_end, lon);
+      if (lon_result.ec != std::errc{})
+        continue;
+
       erkir::spherical::Point point(lat, lon);
-      std::string identifier(fields[0]);
+      batch_waypoints.emplace_back(
+          std::string(identifier), // First part of the pair (string)
+          Waypoint(                // Second part of the pair (Waypoint)
+              Utils::GetWaypointTypeByIdentifier(std::string(identifier)),
+              std::string(identifier),
+              point));
 
-      // Only create if it doesn't exist
-      NavdataObject::FindOrCreateWaypointByID(identifier, point);
+      line_start = line_end + 1;
     }
+
+    // Single locked batch insertion
+    std::lock_guard<std::mutex> lock(_mutex);
+    BatchInsertWaypoints(std::move(batch_waypoints));
   }
   catch (const std::exception &e)
   {
     Log::error("Error loading intersection waypoints: {}", e.what());
+  }
+}
+
+void NavdataObject::BatchInsertWaypoints(std::vector<std::pair<std::string, Waypoint>> &&batch)
+{
+  waypoints.reserve(waypoints.size() + batch.size());
+  for (auto &&pair : batch)
+  {
+    waypoints.emplace(std::move(pair.first), std::move(pair.second));
   }
 }
 
@@ -130,39 +124,16 @@ std::optional<Waypoint> NavdataObject::FindWaypointByType(std::string icao,
 std::optional<Waypoint> RouteParser::NavdataObject::FindClosestWaypointTo(
     std::string nextWaypoint, std::optional<Waypoint> reference)
 {
-  if (!reference.has_value())
-  {
-    reference = FindWaypoint(nextWaypoint);
-    if (!reference.has_value())
-    {
-      return std::nullopt;
-    }
-  }
-
-  std::multimap<double, Waypoint> waypointsByDistance;
-  auto range = waypoints.equal_range(nextWaypoint);
-  for (auto it = range.first; it != range.second; ++it)
-  {
-    waypointsByDistance.insert(
-        {reference->distanceToInMeters(it->second), it->second});
-  }
-
-  if (!waypointsByDistance.empty())
-  {
-    return waypointsByDistance.begin()->second; // Maps are ordered by default
-  }
-
-  return std::nullopt;
+  return waypointNetwork->findClosestWaypointTo(nextWaypoint, reference);
 }
 
 std::optional<Waypoint>
 RouteParser::NavdataObject::FindWaypoint(std::string identifier)
 {
-  auto waypts = GetWaypoints(); // Get a local copy
-  auto range = waypts.equal_range(identifier);
-  if (range.first != range.second) // Compare iterators from the same container
-  {
-    return range.first->second;
-  }
-  return std::nullopt;
+  return waypointNetwork->findFirstWaypoint(identifier);
+}
+
+std::optional<Waypoint> NavdataObject::FindClosestWaypoint(std::string identifier, erkir::spherical::Point referencePoint)
+{
+  return waypointNetwork->findClosestWaypoint(identifier, referencePoint);
 }

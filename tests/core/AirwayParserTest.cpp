@@ -98,6 +98,9 @@ namespace RouteHandlerTests
 
     TEST_F(AirwayNetworkTest, ValidateRoute)
     {
+        // ANSAT	13.730000	106.986667	14	Y6	B	PNH	11.543972	104.843917	06000	Y					N
+        // PNH	11.543972	104.843917	14	Y6	B					N	ANSAT	13.730000	106.986667	06000	Y
+
         const char *input =
             "IDESI\t51.897706\t1.885578\t14\tY6\tB\t"
             "BANEM\t52.335556\t1.505278\t16500\tY\t"
@@ -113,7 +116,15 @@ namespace RouteHandlerTests
 
             "SUMUM\t51.637281\t2.107706\t14\tY6\tB\t"
             "TOSVA\t51.677056\t2.073983\t10500\tY\t"
-            "N\n";
+            "N\n"
+
+            "ANSAT\t13.730000\t106.986667\t14\tY6\tB\t"
+            "PNH\t11.543972\t104.843917\t06000\tY\t"
+            "N\n"
+
+            "PNH\t11.543972\t104.843917\t14\tY6\tB\t"
+            "N\t"
+            "ANSAT\t13.730000\t106.986667\t06000\tY\n";
 
         auto network = AirwayParser::ParseAirwayTxt(input);
 

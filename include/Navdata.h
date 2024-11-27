@@ -1,7 +1,5 @@
 #pragma once
-#include "AirwayParser.h"
 #include "Log.h"
-#include "types/AirwayNetwork.h"
 #include "types/Procedure.h"
 #include "types/Waypoint.h"
 #include <exception>
@@ -14,7 +12,8 @@
 #include <unordered_map>
 #include "Utils.h"
 #include <iostream>
-
+#include "AirwayNetwork.h"
+#include "WaypointNetwork.h"
 namespace RouteParser
 {
 
@@ -29,11 +28,11 @@ namespace RouteParser
      * @param procedures The procedures to set.
      */
     static void
-    SetWaypoints(std::unordered_map<std::string, Waypoint> newWaypoints,
+    SetWaypoints(std::unordered_multimap<std::string, Waypoint> newWaypoints,
                  std::unordered_multimap<std::string, Procedure> newProcedures)
     {
       std::lock_guard<std::mutex> lock(_mutex);
-      waypoints = newWaypoints;
+      // waypointNetwork->initialCache(waypoints);
       Log::info("Loaded {} waypoints into NavdataObject", waypoints.size());
 
       procedures = newProcedures;
@@ -48,6 +47,12 @@ namespace RouteParser
       std::lock_guard<std::mutex> lock(_mutex);
       return waypoints;
     }
+
+    static const std::shared_ptr<WaypointNetwork> GetWaypointNetwork()
+    {
+      return waypointNetwork;
+    }
+
     static std::unordered_multimap<std::string, Procedure> GetProcedures()
     {
       std::lock_guard<std::mutex> lock(_mutex);
@@ -80,18 +85,18 @@ namespace RouteParser
      */
     static std::optional<Waypoint> FindWaypoint(std::string identifier);
 
-    static AirwayNetwork GetAirwayNetwork()
-    {
-      std::lock_guard<std::mutex> lock(_mutex);
-      return airwayNetwork;
-    }
+    /**
+     * @brief Finds the closest waypoint to a given point by distance.
+     * @param identifier The identifier of the waypoint.
+     * @param referencePoint The reference point.
+     * @return An optional containing the closest waypoint if found, or an empty
+     * optional.
+     */
+    static std::optional<Waypoint> FindClosestWaypoint(std::string identifier,
+                                                       erkir::spherical::Point referencePoint);
 
-    /* Used for testing */
-
-    static AirwayNetwork SetAirwayNetwork(AirwayNetwork network)
+    static std::shared_ptr<AirwayNetwork> GetAirwayNetwork()
     {
-      std::lock_guard<std::mutex> lock(_mutex);
-      airwayNetwork = network;
       return airwayNetwork;
     }
 
@@ -116,9 +121,12 @@ namespace RouteParser
     inline static std::mutex _mutex;
     inline static std::mutex waypointsMutex;
 
+    static void BatchInsertWaypoints(std::vector<std::pair<std::string, Waypoint>> &&batch);
+
     inline static std::unordered_map<std::string, Waypoint> waypoints = {};
     inline static std::unordered_multimap<std::string, Procedure> procedures = {};
-    inline static AirwayNetwork airwayNetwork{};
+    inline static std::shared_ptr<AirwayNetwork> airwayNetwork;
+    inline static std::shared_ptr<WaypointNetwork> waypointNetwork;
   };
 
   // const static auto NavdataContainer = std::make_shared<NavdataObject>();

@@ -19,22 +19,23 @@ find_package(OpenMP)
 # Add this to make Abseil installation configs available
 set(ABSL_PROPAGATE_CXX_STD ON)
 set(ABSL_ENABLE_INSTALL ON)
-
+set(SQLITECPP_INTERNAL_SQLITE ON CACHE BOOL "" FORCE)  # Use internal SQLite
+set(SQLITECPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)     # Don't build tests
+set(SQLITECPP_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)  # Don't build examples
 add_library(route-handler STATIC)
 
 add_subdirectory(extern/erkir)
 add_subdirectory(extern/fmt)
 add_subdirectory(extern/abseil-cpp)
 add_subdirectory(extern/mio)
+add_subdirectory(extern/SQLiteCpp)
 
 target_sources(route-handler
     PRIVATE
         src/RouteHandler.cpp
         src/Navdata.cpp
         src/Parser.cpp
-        src/AirwayParser.cpp
-
-        src/types/AirwayNetwork.cpp
+        src/AirwayNetwork.cpp
         )
 
 target_include_directories(route-handler
@@ -46,6 +47,7 @@ target_include_directories(route-handler
 
 target_link_libraries(route-handler
     PUBLIC
+    SQLiteCpp
         erkir
         fmt
         absl::strings

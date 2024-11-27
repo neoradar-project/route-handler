@@ -7,7 +7,7 @@
 #include <memory>
 #include <string>
 #include <types/Waypoint.h>
-#include <future>
+#include <thread>
 using namespace RouteParser;
 
 class RouteHandler
@@ -18,29 +18,34 @@ public:
 
   std::shared_ptr<ParserHandler> GetParser();
   void Bootstrap(ILogger logFunc,
-                 std::unordered_map<std::string, Waypoint> waypoints,
+                 std::unordered_multimap<std::string, Waypoint> waypoints,
                  std::unordered_multimap<std::string, Procedure> procedures,
                  std::string airwaysFile, std::string isecFile = "")
   {
     Log::SetLogger(logFunc);
     NavdataObject::SetWaypoints(waypoints, procedures);
 
-    // Create asynchronous tasks for loading airways and intersection waypoints
-    std::future<void> airwaysTask = std::async(std::launch::async, [&]()
-                                               { NavdataObject::LoadAirwayNetwork(airwaysFile); });
-
-    std::future<void> isecTask;
+    // Create thread for loading airways
+    // std::thread airwaysThread([&airwaysFile]()
+    //                           { NavdataObject::LoadAirwayNetwork(airwaysFile); });
+    NavdataObject::LoadAirwayNetwork(airwaysFile);
+    // Optionally create thread for intersection waypoints
+    std::thread isecThread;
     if (!isecFile.empty())
     {
-      isecTask = std::async(std::launch::async, [&]()
-                            { NavdataObject::LoadIntersectionWaypoints(isecFile); });
+      isecThread = std::thread([&isecFile]()
+                               { NavdataObject::LoadIntersectionWaypoints(isecFile); });
     }
 
-    // Wait for both tasks to complete
-    airwaysTask.wait();
-    if (isecTask.valid())
+    // // Wait for threads to complete
+    // if (airwaysThread.joinable())
+    // {
+    //   airwaysThread.join();
+    // }
+
+    if (!isecFile.empty() && isecThread.joinable())
     {
-      isecTask.wait();
+      isecThread.join();
     }
 
     Log::info("RouteHandler is ready.");

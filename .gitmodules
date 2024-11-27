@@ -13,3 +13,6 @@
 [submodule "extern/mio"]
 	path = extern/mio
 	url = https://github.com/vimpunk/mio.git
+[submodule "extern/SQLiteCpp"]
+	path = extern/SQLiteCpp
+	url = https://github.com/SRombauts/SQLiteCpp.git

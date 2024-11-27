@@ -7,7 +7,7 @@ namespace RouteHandlerTests
 {
     namespace Data
     {
-        static inline const std::unordered_map<std::string, RouteParser::Waypoint>
+        static inline const std::unordered_multimap<std::string, RouteParser::Waypoint>
             SmallWaypointsList = {
                 {"PAINT", RouteParser::Waypoint(RouteParser::WaypointType::FIX, "PAINT",
                                                 {51.250000, -0.420000})},
