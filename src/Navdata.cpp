@@ -89,11 +89,11 @@ void NavdataObject::LoadIntersectionWaypoints(std::string isecFilePath)
       {
         lat = std::stod(std::string(num_start, num_end));
       }
-      catch (const std::invalid_argument &e)
+      catch (const std::invalid_argument &)
       {
         continue;
       }
-      catch (const std::out_of_range &e)
+      catch (const std::out_of_range &)
       {
         continue;
       }
@@ -104,11 +104,11 @@ void NavdataObject::LoadIntersectionWaypoints(std::string isecFilePath)
       {
         lon = std::stod(std::string(num_start, num_end));
       }
-      catch (const std::invalid_argument &e)
+      catch (const std::invalid_argument &)
       {
         continue;
       }
-      catch (const std::out_of_range &e)
+      catch (const std::out_of_range &)
       {
         continue;
       }
