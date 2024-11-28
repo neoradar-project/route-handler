@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.14)
 
 project(route-handler VERSION 1.0 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)  # Change this from 17 to 20
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 foreach(OUTPUT_CONFIG DEBUG RELEASE)
@@ -16,17 +16,25 @@ set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 find_package(OpenMP)
 
-# Add this to make Abseil installation configs available
-set(ABSL_PROPAGATE_CXX_STD ON)
-set(ABSL_ENABLE_INSTALL ON)
-set(SQLITECPP_INTERNAL_SQLITE ON CACHE BOOL "" FORCE)  # Use internal SQLite
-set(SQLITECPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)     # Don't build tests
-set(SQLITECPP_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)  # Don't build examples
 add_library(route-handler STATIC)
 
-add_subdirectory(extern/erkir)
+# Try to find an installed version first
+find_package(erkir CONFIG QUIET)
+
+if(NOT erkir_FOUND)
+    # If not found, build from source
+    if(NOT TARGET erkir::erkir)
+        add_subdirectory(extern/erkir)
+    endif()
+endif()
+
 add_subdirectory(extern/fmt)
-add_subdirectory(extern/abseil-cpp)
+find_package(absl CONFIG QUIET)
+if(NOT absl_FOUND)
+    set(ABSL_PROPAGATE_CXX_STD ON)
+    set(ABSL_ENABLE_INSTALL ON)
+    add_subdirectory(extern/abseil-cpp)
+endif()
 add_subdirectory(extern/mio)
 add_subdirectory(extern/SQLiteCpp)
 
@@ -47,8 +55,8 @@ target_include_directories(route-handler
 
 target_link_libraries(route-handler
     PUBLIC
-    SQLiteCpp
-        erkir
+        SQLiteCpp
+        erkir::erkir
         fmt
         absl::strings
         absl::flat_hash_map

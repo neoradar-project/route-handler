@@ -20,18 +20,24 @@ if (TEST_USE_REALDATA)
     )
 endif()
 
-# Configure Google Test
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../extern/googletest 
-                 ${CMAKE_CURRENT_BINARY_DIR}/googletest)
+if(DEFINED VCPKG_TARGET_TRIPLET)
+    # We're building as part of FDPS with vcpkg
+    find_package(GTest CONFIG REQUIRED)
+    set(GTEST_LIBS GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
+else()
+    # Standalone build - use source version
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../extern/googletest 
+                     ${CMAKE_CURRENT_BINARY_DIR}/googletest)
+    set(GTEST_LIBS gtest gtest_main gmock gmock_main)
+endif()
 
 # Test executable
 add_executable(${PROJECT_NAME})
 
-# Add test sources
 target_sources(${PROJECT_NAME}
     PRIVATE
-        ${test_core}  # Add your test source files here
+        ${test_core}
 )
 
 target_include_directories(${PROJECT_NAME}
@@ -42,8 +48,7 @@ target_include_directories(${PROJECT_NAME}
 target_link_libraries(${PROJECT_NAME}
     PRIVATE
         route-handler
-        gtest_main
-        gmock_main
+        ${GTEST_LIBS}
 )
 
 # Platform-specific configuration
@@ -85,6 +90,5 @@ target_compile_definitions(${PROJECT_NAME}
         $<$<BOOL:${TEST_USE_TESTDATA}>:TEST_USE_TESTDATA>
 )
 
-# Register test
-add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
-    
+include(GoogleTest)
+gtest_discover_tests(${PROJECT_NAME})
