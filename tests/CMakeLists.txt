@@ -1,4 +1,4 @@
-set (PROJECT_NAME route-handler-tests)
+set(PROJECT_NAME route-handler-tests)
 
 include(CTest)
 enable_testing()
@@ -10,10 +10,9 @@ set(test_core
     core/RouteHandlerTest.cpp
     core/RouteHandlerPerformanceTest.cpp
     core/Data/SampleNavdata.cpp
-    # core/TestDataParserTest.cpp
 )
 
-if (TEST_USE_REALDATA)
+if(TEST_USE_REALDATA)
     set(test_core
         ${test_core}
         core/TestDataParserTest.cpp
@@ -21,11 +20,9 @@ if (TEST_USE_REALDATA)
 endif()
 
 if(DEFINED VCPKG_TARGET_TRIPLET)
-    # We're building as part of FDPS with vcpkg
     find_package(GTest CONFIG REQUIRED)
     set(GTEST_LIBS GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
 else()
-    # Standalone build - use source version
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../extern/googletest 
                      ${CMAKE_CURRENT_BINARY_DIR}/googletest)
@@ -51,7 +48,6 @@ target_link_libraries(${PROJECT_NAME}
         ${GTEST_LIBS}
 )
 
-# Platform-specific configuration
 if(APPLE)
     find_library(CORE_FOUNDATION CoreFoundation)
     find_library(COCOA_LIBRARY Cocoa)
@@ -64,30 +60,44 @@ if(APPLE)
     )
 endif()
 
-add_custom_command(TARGET route-handler-tests POST_BUILD
+# Create the testdata directory
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory 
-        $<TARGET_FILE_DIR:route-handler-tests>/testdata/
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_CURRENT_SOURCE_DIR}/testdata/airways.db
-        $<TARGET_FILE_DIR:route-handler-tests>/testdata/airways.db
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/testdata/
 )
 
-if (TEST_USE_REALDATA)
-add_custom_command(TARGET route-handler-tests POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory 
-        $<TARGET_FILE_DIR:route-handler-tests>/testdata/
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_CURRENT_SOURCE_DIR}/testdata/gng.db
-        $<TARGET_FILE_DIR:route-handler-tests>/testdata/gng.db
-    COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_CURRENT_SOURCE_DIR}/testdata/navdata.db
-        $<TARGET_FILE_DIR:route-handler-tests>/testdata/navdata.db
-)
+# Handle airways.db
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/testdata/airways.db)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${CMAKE_CURRENT_SOURCE_DIR}/testdata/airways.db
+            $<TARGET_FILE_DIR:${PROJECT_NAME}>/testdata/airways.db
+    )
+endif()
+
+if(TEST_USE_REALDATA)
+    # Handle gng.db
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/testdata/gng.db)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_CURRENT_SOURCE_DIR}/testdata/gng.db
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>/testdata/gng.db
+        )
+    endif()
+
+    # Handle navdata.db
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/testdata/navdata.db)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_CURRENT_SOURCE_DIR}/testdata/navdata.db
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>/testdata/navdata.db
+        )
+    endif()
 endif()
 
 target_compile_definitions(${PROJECT_NAME}
     PRIVATE
-        $<$<BOOL:${TEST_USE_TESTDATA}>:TEST_USE_TESTDATA>
+        $<$<BOOL:${TEST_USE_REALDATA}>:TEST_USE_REALDATA>
 )
 
 include(GoogleTest)
