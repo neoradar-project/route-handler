@@ -53,6 +53,15 @@ namespace RouteParser
       return waypointNetwork;
     }
 
+    static void Reset()
+    {
+      if (waypointNetwork)
+      {
+        waypointNetwork = std::make_shared<WaypointNetwork>();
+      }
+      procedures.clear();
+    }
+
     static std::unordered_multimap<std::string, Procedure> GetProcedures()
     {
       std::lock_guard<std::mutex> lock(_mutex);

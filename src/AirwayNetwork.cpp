@@ -37,7 +37,7 @@ namespace RouteParser
         std::unordered_map<std::string, std::unordered_map<std::string, uint32_t>> levels;
     };
 
-    RouteValidationResult AirwayNetwork::validateAirwayTraversal(const Waypoint &startFix, const std::string &airway, const std::string &endFix, int flightLevel)
+    RouteValidationResult AirwayNetwork::validateAirwayTraversal(const Waypoint &startFix, const std::string &airway, const std::string &endFix, int flightLevel, std::shared_ptr<NavdataObject> navdata)
     {
         RouteValidationResult result;
         result.isValid = false;
@@ -59,7 +59,7 @@ namespace RouteParser
             }
 
             // Verify end fix exists
-            auto endFixWaypoint = NavdataObject::FindClosestWaypointTo(endFix, startFix);
+            auto endFixWaypoint = navdata->FindClosestWaypointTo(endFix, startFix);
             if (!endFixWaypoint)
             {
                 result.isValid = false;
@@ -140,7 +140,7 @@ namespace RouteParser
 
             for (size_t i = 0; i < pathIds.size(); ++i)
             {
-                auto waypoint = NavdataObject::FindClosestWaypointTo(pathIds[i], lastWaypoint);
+                auto waypoint = navdata->FindClosestWaypointTo(pathIds[i], lastWaypoint);
                 if (!waypoint)
                 {
                     result.isValid = false;

@@ -430,7 +430,7 @@ bool RouteParser::ParserHandler::ParseAirway(
   }
 
   auto airwaySegments = NavdataObject::GetAirwayNetwork()->validateAirwayTraversal(
-      previousWaypoint.value(), token, nextToken.value(), 99999);
+      previousWaypoint.value(), token, nextToken.value(), 99999, navdata);
 
   // Process any errors from airway validation
   for (const auto &error : airwaySegments.errors)

@@ -3,6 +3,8 @@
 #include "types/RouteWaypoint.h"
 #include "types/Waypoint.h"
 #include <string>
+#include <memory>
+#include "Navdata.h"
 
 namespace RouteParser
 {
@@ -13,7 +15,12 @@ namespace RouteParser
    */
   class ParserHandler
   {
+  public:
+    ParserHandler(std::shared_ptr<NavdataObject> navdata) : navdata(navdata) {}
+
   private:
+    std::shared_ptr<NavdataObject> navdata;
+
     /**
      * @brief Cleans up the raw route string.
      * @param route The raw route string to be cleaned.

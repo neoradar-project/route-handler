@@ -34,7 +34,7 @@ void NavdataObject::LoadWaypoints(std::string waypointsFilePath)
   {
     waypointNetwork = std::make_shared<WaypointNetwork>();
   }
-  waypointNetwork->addProvider(std::make_unique<AirwayWaypointProvider>(
+  waypointNetwork->addProvider(std::make_unique<NavdataWaypointProvider>(
       waypointsFilePath, "Waypoints DB"));
 }
 

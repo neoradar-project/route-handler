@@ -10,6 +10,8 @@
 
 namespace RouteParser
 {
+
+    class NavdataObject;
     class AirwayNetwork
     {
     private:
@@ -21,7 +23,8 @@ namespace RouteParser
             const Waypoint &startFix,
             const std::string &airway,
             const std::string &endFix,
-            int flightLevel);
+            int flightLevel,
+            std::shared_ptr<NavdataObject> navdata);
         bool airwayExists(const std::string &airwayName);
 
     private:

@@ -74,6 +74,9 @@ add_custom_command(TARGET router-handler-tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy
         ${CMAKE_CURRENT_SOURCE_DIR}/testdata/gng.db
         $<TARGET_FILE_DIR:router-handler-tests>/testdata/gng.db
+    COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_SOURCE_DIR}/testdata/navdata.db
+        $<TARGET_FILE_DIR:router-handler-tests>/testdata/navdata.db
 )
 endif()
 

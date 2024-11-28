@@ -13,8 +13,16 @@ using namespace RouteParser;
 class RouteHandler
 {
 public:
-  RouteHandler() { this->Parser = std::make_shared<RouteParser::ParserHandler>(); }
-  ~RouteHandler() { this->Parser.reset(); }
+  RouteHandler()
+  {
+    this->navdata = std::make_shared<RouteParser::NavdataObject>();
+    this->Parser = std::make_shared<RouteParser::ParserHandler>(this->navdata);
+  }
+  ~RouteHandler()
+  {
+    this->Parser.reset();
+    this->navdata.reset();
+  }
 
   std::shared_ptr<ParserHandler> GetParser();
   void Bootstrap(ILogger logFunc,
@@ -23,26 +31,17 @@ public:
                  std::string airwaysFile, std::string isecFile = "")
   {
     Log::SetLogger(logFunc);
-    NavdataObject::SetProcedures(procedures);
+    navdata->SetProcedures(procedures);
 
-    // Create thread for loading airways
-    // std::thread airwaysThread([&airwaysFile]()
-    //                           { NavdataObject::LoadAirwayNetwork(airwaysFile); });
-    NavdataObject::LoadWaypoints(waypointsFile);
-    NavdataObject::LoadAirwayNetwork(airwaysFile);
-    // Optionally create thread for intersection waypoints
+    navdata->LoadAirwayNetwork(airwaysFile);
+    navdata->LoadWaypoints(waypointsFile);
+
     std::thread isecThread;
     if (!isecFile.empty())
     {
-      isecThread = std::thread([&isecFile]()
-                               { NavdataObject::LoadIntersectionWaypoints(isecFile); });
+      isecThread = std::thread([this, &isecFile]()
+                               { navdata->LoadIntersectionWaypoints(isecFile); });
     }
-
-    // // Wait for threads to complete
-    // if (airwaysThread.joinable())
-    // {
-    //   airwaysThread.join();
-    // }
 
     if (!isecFile.empty() && isecThread.joinable())
     {
@@ -54,6 +53,7 @@ public:
   }
 
 private:
-  std::shared_ptr<ParserHandler> Parser = nullptr;
+  std::shared_ptr<RouteParser::ParserHandler> Parser = nullptr;
+  std::shared_ptr<RouteParser::NavdataObject> navdata = nullptr;
   bool isReady = false;
 };

@@ -9,14 +9,15 @@
 #include "Log.h"
 #include <optional>
 #include "Utils.h"
+
 namespace RouteParser
 {
-
     class WaypointProvider
     {
     public:
         virtual ~WaypointProvider() = default;
         virtual std::vector<Waypoint> findWaypoint(const std::string &identifier) = 0;
+        virtual std::optional<Waypoint> findClosestWaypoint(const std::string &identifier, const erkir::spherical::Point &reference) = 0;
         virtual bool initialize() = 0;
         virtual std::string getName() const = 0;
     };
@@ -49,11 +50,9 @@ namespace RouteParser
         std::vector<Waypoint> findWaypoint(const std::string &identifier) override
         {
             std::vector<Waypoint> results;
-
             try
             {
-                SQLite::Statement query(*db,
-                                        "SELECT identifier, latitude, longitude FROM waypoints WHERE identifier = ?");
+                SQLite::Statement query(*db, "SELECT identifier, latitude, longitude FROM waypoints WHERE identifier = ?");
                 query.bind(1, identifier);
 
                 while (query.executeStep())
@@ -61,7 +60,6 @@ namespace RouteParser
                     std::string id = query.getColumn(0).getText();
                     double lat = query.getColumn(1).getDouble();
                     double lon = query.getColumn(2).getDouble();
-
                     results.emplace_back(Utils::GetWaypointTypeByIdentifier(id), id, erkir::spherical::Point(lat, lon));
                 }
             }
@@ -69,8 +67,41 @@ namespace RouteParser
             {
                 Log::error("Error querying waypoint: {}", e.what());
             }
-
             return results;
+        }
+
+        std::optional<Waypoint> findClosestWaypoint(const std::string &identifier, const erkir::spherical::Point &reference) override
+        {
+            try
+            {
+                SQLite::Statement query(*db,
+                                        "SELECT identifier, latitude, longitude, "
+                                        "(6371 * acos(cos(radians(?)) * cos(radians(latitude)) * cos(radians(longitude) - radians(?)) + sin(radians(?)) * sin(radians(latitude)))) AS distance "
+                                        "FROM waypoints "
+                                        "WHERE identifier = ? "
+                                        "ORDER BY distance ASC LIMIT 1");
+
+                double lat = reference.latitude().degrees();  // Convert to double
+                double lon = reference.longitude().degrees(); // Convert to double
+
+                query.bind(1, lat);
+                query.bind(2, lon);
+                query.bind(3, lat);
+                query.bind(4, identifier);
+
+                if (query.executeStep())
+                {
+                    std::string id = query.getColumn(0).getText();
+                    double lat = query.getColumn(1).getDouble();
+                    double lon = query.getColumn(2).getDouble();
+                    return Waypoint(Utils::GetWaypointTypeByIdentifier(id), id, erkir::spherical::Point(lat, lon));
+                }
+            }
+            catch (const SQLite::Exception &e)
+            {
+                Log::error("Error querying closest waypoint: {}", e.what());
+            }
+            return std::nullopt;
         }
 
         std::string getName() const override
@@ -107,11 +138,11 @@ namespace RouteParser
         std::vector<Waypoint> findWaypoint(const std::string &identifier) override
         {
             std::vector<Waypoint> results;
-
             try
             {
                 SQLite::Statement query(*db,
-                                        "SELECT ident, type, frequency_khz, latitude_deg, longitude_deg FROM waypoints WHERE identifier = ?");
+                                        "SELECT ident, type, frequency_khz, latitude_deg, longitude_deg "
+                                        "FROM navaids WHERE ident = ?");
                 query.bind(1, identifier);
 
                 while (query.executeStep())
@@ -121,16 +152,52 @@ namespace RouteParser
                     int frequency = query.getColumn(2).getInt();
                     double lat = query.getColumn(3).getDouble();
                     double lon = query.getColumn(4).getDouble();
-
-                    results.emplace_back(Utils::GetWaypointTypeByIdentifier(id), id, erkir::spherical::Point(lat, lon));
+                    results.emplace_back(Utils::GetWaypointTypeByTypeString(id), id,
+                                         erkir::spherical::Point(lat, lon), frequency * 1000);
                 }
             }
             catch (const SQLite::Exception &e)
             {
                 Log::error("Error querying waypoint: {}", e.what());
             }
-
             return results;
+        }
+
+        std::optional<Waypoint> findClosestWaypoint(const std::string &identifier, const erkir::spherical::Point &reference) override
+        {
+            try
+            {
+                SQLite::Statement query(*db,
+                                        "SELECT ident, type, frequency_khz, latitude_deg, longitude_deg, "
+                                        "(6371 * acos(cos(radians(?)) * cos(radians(latitude_deg)) * cos(radians(longitude_deg) - radians(?)) + sin(radians(?)) * sin(radians(latitude_deg)))) AS distance "
+                                        "FROM navaids "
+                                        "WHERE ident = ? "
+                                        "ORDER BY distance ASC LIMIT 1");
+
+                double lat = reference.latitude().degrees();  // Convert to double
+                double lon = reference.longitude().degrees(); // Convert to double
+
+                query.bind(1, lat);
+                query.bind(2, lon);
+                query.bind(3, lat);
+                query.bind(4, identifier);
+
+                if (query.executeStep())
+                {
+                    std::string id = query.getColumn(0).getText();
+                    std::string type = query.getColumn(1).getText();
+                    int frequency = query.getColumn(2).getInt();
+                    double lat = query.getColumn(3).getDouble();
+                    double lon = query.getColumn(4).getDouble();
+                    return Waypoint(Utils::GetWaypointTypeByTypeString(id), id,
+                                    erkir::spherical::Point(lat, lon), frequency * 1000);
+                }
+            }
+            catch (const SQLite::Exception &e)
+            {
+                Log::error("Error querying closest waypoint: {}", e.what());
+            }
+            return std::nullopt;
         }
 
         std::string getName() const override
@@ -159,13 +226,13 @@ namespace RouteParser
 
         void initialCache(std::unordered_multimap<std::string, Waypoint> initialCache)
         {
-            cache = initialCache;
+            cache = std::move(initialCache);
         }
 
-        // Modified findWaypoint to work with multimap
+        // Original findWaypoint with early stopping
         std::vector<Waypoint> findWaypoint(const std::string &identifier)
         {
-            // Check cache first if enabled
+            // Check cache first
             if (useCache)
             {
                 auto range = cache.equal_range(identifier);
@@ -180,76 +247,26 @@ namespace RouteParser
                 }
             }
 
-            std::vector<Waypoint> results;
-
-            // Try each provider in order
             for (const auto &provider : providers)
             {
-
                 auto providerResults = provider->findWaypoint(identifier);
                 if (!providerResults.empty())
                 {
-                    Log::debug("Found {} in {}", identifier, provider->getName());
-                    results.insert(results.end(), providerResults.begin(), providerResults.end());
+                    if (useCache)
+                    {
+                        for (const auto &waypoint : providerResults)
+                        {
+                            cache.insert({identifier, waypoint});
+                        }
+                    }
+                    return providerResults; // Early return once we find results
                 }
             }
 
-            if (useCache && !results.empty())
-            {
-                for (const auto &waypoint : results)
-                {
-                    cache.insert({identifier, waypoint});
-                }
-            }
-
-            return results;
+            return {};
         }
 
-        void clearCache()
-        {
-            cache.clear();
-        }
-
-        // The new findWaypoint with position reference
-        std::vector<Waypoint> findWaypoint(const std::string &identifier,
-                                           const erkir::spherical::Point &referencePoint)
-        {
-            // Get all waypoints first
-            auto waypoints = findWaypoint(identifier);
-
-            // Create multimap to sort by distance
-            std::multimap<double, Waypoint> waypointsByDistance;
-
-            // Sort waypoints by distance
-            for (const auto &waypoint : waypoints)
-            {
-                double distance = referencePoint.distanceTo(waypoint.getPosition());
-                waypointsByDistance.insert({distance, waypoint});
-            }
-
-            // Convert sorted map to vector
-            std::vector<Waypoint> results;
-            std::transform(waypointsByDistance.begin(), waypointsByDistance.end(),
-                           std::back_inserter(results),
-                           [](const auto &pair)
-                           { return pair.second; });
-
-            return results;
-        }
-
-        // Helper method to get just the closest waypoint
-        std::optional<Waypoint> findClosestWaypoint(const std::string &identifier,
-                                                    const erkir::spherical::Point &referencePoint)
-        {
-            auto waypoints = findWaypoint(identifier, referencePoint);
-            if (waypoints.empty())
-            {
-                return std::nullopt;
-            }
-            return waypoints[0]; // First waypoint is the closest one
-        }
-
-        // Helper method to get first waypoint
+        // Original findFirstWaypoint implementation
         std::optional<Waypoint> findFirstWaypoint(const std::string &identifier)
         {
             auto waypoints = findWaypoint(identifier);
@@ -260,13 +277,13 @@ namespace RouteParser
             return waypoints[0];
         }
 
-        std::optional<Waypoint> findClosestWaypointTo(const std::string &nextWaypoint,
-                                                      std::optional<Waypoint> reference = std::nullopt)
+        // Original findClosestWaypointTo implementation
+        std::optional<Waypoint> findClosestWaypointTo(const std::string &identifier, std::optional<Waypoint> reference = std::nullopt)
         {
             // If no reference provided, try to find one from the waypoint name
             if (!reference.has_value())
             {
-                reference = findFirstWaypoint(nextWaypoint);
+                reference = findFirstWaypoint(identifier);
                 if (!reference.has_value())
                 {
                     return std::nullopt;
@@ -274,7 +291,7 @@ namespace RouteParser
             }
 
             // Get all waypoints matching the identifier
-            auto waypoints = findWaypoint(nextWaypoint);
+            auto waypoints = findWaypoint(identifier);
             if (waypoints.empty())
             {
                 return std::nullopt;
@@ -295,6 +312,30 @@ namespace RouteParser
 
             return std::nullopt;
         }
-    };
 
-} // namespace RouteParser
+        std::optional<Waypoint> findClosestWaypoint(const std::string &identifier,
+                                                    const erkir::spherical::Point &referencePoint)
+        {
+            auto waypoints = findWaypoint(identifier);
+            if (waypoints.empty())
+            {
+                return std::nullopt;
+            }
+
+            // Find closest waypoint
+            auto closest = std::min_element(waypoints.begin(), waypoints.end(),
+                                            [&referencePoint](const Waypoint &a, const Waypoint &b)
+                                            {
+                                                return referencePoint.distanceTo(a.getPosition()) <
+                                                       referencePoint.distanceTo(b.getPosition());
+                                            });
+
+            return *closest;
+        }
+
+        void clearCache()
+        {
+            cache.clear();
+        }
+    };
+}
