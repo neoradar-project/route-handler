@@ -2,6 +2,7 @@
 #include <map>
 #include <mio/mmap.hpp>
 #include <memory>
+#include <string>
 
 using namespace RouteParser;
 
@@ -80,19 +81,37 @@ void NavdataObject::LoadIntersectionWaypoints(std::string isecFilePath)
       // Extract identifier
       std::string_view identifier(line_start, tab1 - line_start);
 
-      // Fast number parsing using from_chars
+      // Fast number parsing using std::stod
       double lat, lon;
       const char *num_start = tab1 + 1;
       const char *num_end = tab2;
-      std::from_chars_result lat_result = std::from_chars(num_start, num_end, lat);
-      if (lat_result.ec != std::errc{})
+      try
+      {
+        lat = std::stod(std::string(num_start, num_end));
+      }
+      catch (const std::invalid_argument &e)
+      {
         continue;
+      }
+      catch (const std::out_of_range &e)
+      {
+        continue;
+      }
 
       num_start = tab2 + 1;
       num_end = line_end;
-      std::from_chars_result lon_result = std::from_chars(num_start, num_end, lon);
-      if (lon_result.ec != std::errc{})
+      try
+      {
+        lon = std::stod(std::string(num_start, num_end));
+      }
+      catch (const std::invalid_argument &e)
+      {
         continue;
+      }
+      catch (const std::out_of_range &e)
+      {
+        continue;
+      }
 
       erkir::spherical::Point point(lat, lon);
       batch_waypoints.emplace_back(

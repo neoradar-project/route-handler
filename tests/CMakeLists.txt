@@ -1,4 +1,4 @@
-set (PROJECT_NAME router-handler-tests)
+set (PROJECT_NAME route-handler-tests)
 
 include(CTest)
 enable_testing()
@@ -59,24 +59,24 @@ if(APPLE)
     )
 endif()
 
-add_custom_command(TARGET router-handler-tests POST_BUILD
+add_custom_command(TARGET route-handler-tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory 
-        $<TARGET_FILE_DIR:router-handler-tests>/testdata/
+        $<TARGET_FILE_DIR:route-handler-tests>/testdata/
     COMMAND ${CMAKE_COMMAND} -E copy
         ${CMAKE_CURRENT_SOURCE_DIR}/testdata/airways.db
-        $<TARGET_FILE_DIR:router-handler-tests>/testdata/airways.db
+        $<TARGET_FILE_DIR:route-handler-tests>/testdata/airways.db
 )
 
 if (TEST_USE_REALDATA)
-add_custom_command(TARGET router-handler-tests POST_BUILD
+add_custom_command(TARGET route-handler-tests POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E make_directory 
-        $<TARGET_FILE_DIR:router-handler-tests>/testdata/
+        $<TARGET_FILE_DIR:route-handler-tests>/testdata/
     COMMAND ${CMAKE_COMMAND} -E copy
         ${CMAKE_CURRENT_SOURCE_DIR}/testdata/gng.db
-        $<TARGET_FILE_DIR:router-handler-tests>/testdata/gng.db
+        $<TARGET_FILE_DIR:route-handler-tests>/testdata/gng.db
     COMMAND ${CMAKE_COMMAND} -E copy
         ${CMAKE_CURRENT_SOURCE_DIR}/testdata/navdata.db
-        $<TARGET_FILE_DIR:router-handler-tests>/testdata/navdata.db
+        $<TARGET_FILE_DIR:route-handler-tests>/testdata/navdata.db
 )
 endif()
 
