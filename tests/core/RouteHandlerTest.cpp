@@ -28,7 +28,7 @@ namespace RouteHandlerTests
         // fmt::print(fg(fmt::color::yellow), "[{}] {}\n", level, msg);
         // Ignore log messages in tests
       };
-      handler.Bootstrap(logFunc, Data::SmallWaypointsList, Data::SmallProceduresList, "testdata/airways.db");
+      handler.Bootstrap(logFunc, "", Data::SmallProceduresList, "testdata/airways.db");
     }
   };
 

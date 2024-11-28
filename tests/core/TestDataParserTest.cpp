@@ -29,18 +29,18 @@ namespace RouteHandlerTests
                 // fmt::print(fg(fmt::color::yellow), "[{}] {}\n", level, msg);
                 // Ignore log messages in tests
             };
-            handler.Bootstrap(logFunc, Data::SmallWaypointsList, Data::SmallProceduresList, "testdata/real-airways.db");
+            handler.Bootstrap(logFunc, "", Data::SmallProceduresList, "testdata/gng.db");
         }
     };
 
     TEST_F(TestDataParserTests, BasicRoute)
     {
-        // auto parsedRoute = handler.GetParser()->ParseRawRoute(
-        //     "DET L6 DVR L9 KONAN UL607 KOK MATUG AMASI BOMBI TENLO DEXIT MAREG ALAMU BUDOP UDROS BAFRA ROLIN N644 LAGAS DISKA M737 VERCA M747 SUBUT T923 ERLEV L850 SAGIL NAMAS N35 RODAR A909 BABUM A477 POGON L143 TISIB L141 KAMUD W186 SADAN W187 TUSLI W112 BILDA W619 CHW V67 YBL W199 NIRUV B215 GODON B215 EKETA B208 B208 HFE", "ZSNJ", "VHHH");
+        auto parsedRoute = handler.GetParser()->ParseRawRoute(
+            "DET L6 DVR L9 KONAN UL607 KOK MATUG GUBAX BOREP ENITA PEPIK BALAP NARKA DENAK DINRO UDROS UN743 GAKSU UN644 ROLIN N644 TETRO BARAD M747 LUSAL N199 RASAM L88 METKA B476 TIMGA A480 OTBOR N147 GENGA N143 RUDIZ N161 SARIN A368 FKG W188 GOVSA W66 DKO W64 NUTLO B208 CGO W129 KAMDA W128 FYG B208 HFE R343 SASAN", "EGLL", "ZSPD");
 
-        // PRINT_ALL_PARSING_ERRORS(parsedRoute);
+        PRINT_ALL_PARSING_ERRORS(parsedRoute);
 
-        // EXPECT_EQ(parsedRoute.totalTokens, 59);
+        EXPECT_EQ(parsedRoute.totalTokens, 58);
     }
 
 } // namespace RouteHandlerTests

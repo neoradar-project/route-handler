@@ -3,7 +3,7 @@ set (PROJECT_NAME router-handler-tests)
 include(CTest)
 enable_testing()
 
-set(TEST_USE_TESTDATA ON)
+set(TEST_USE_REALDATA ON)
 
 # CORE TESTS
 set(test_core
@@ -12,6 +12,13 @@ set(test_core
     core/Data/SampleNavdata.cpp
     # core/TestDataParserTest.cpp
 )
+
+if (TEST_USE_REALDATA)
+    set(test_core
+        ${test_core}
+        core/TestDataParserTest.cpp
+    )
+endif()
 
 # Configure Google Test
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -59,6 +66,16 @@ add_custom_command(TARGET router-handler-tests POST_BUILD
         ${CMAKE_CURRENT_SOURCE_DIR}/testdata/airways.db
         $<TARGET_FILE_DIR:router-handler-tests>/testdata/airways.db
 )
+
+if (TEST_USE_REALDATA)
+add_custom_command(TARGET router-handler-tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory 
+        $<TARGET_FILE_DIR:router-handler-tests>/testdata/
+    COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_SOURCE_DIR}/testdata/gng.db
+        $<TARGET_FILE_DIR:router-handler-tests>/testdata/gng.db
+)
+endif()
 
 target_compile_definitions(${PROJECT_NAME}
     PRIVATE

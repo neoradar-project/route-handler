@@ -152,6 +152,35 @@ namespace RouteParser
 
       return WaypointType::UNKNOWN;
     }
+
+    static WaypointType GetWaypointTypeByTypeString(std::string type)
+    {
+      if (type == "VOR")
+      {
+        return WaypointType::VOR;
+      }
+      if (type == "NDB")
+      {
+        return WaypointType::NDB;
+      }
+      if (type == "FIX")
+      {
+        return WaypointType::FIX;
+      }
+      if (type == "NDB-DME")
+      {
+        return WaypointType::NDBDME;
+      }
+      if (type == "VOR-DME")
+      {
+        return WaypointType::VORDME;
+      }
+      if (type == "VORTAC")
+      {
+        return WaypointType::VORTAC;
+      }
+      return WaypointType::UNKNOWN;
+    }
   } // namespace Utils
 } // namespace RouteParser
 #endif // UTILS_H

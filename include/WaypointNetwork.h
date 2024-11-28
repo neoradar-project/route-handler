@@ -19,7 +19,6 @@ namespace RouteParser
         virtual std::vector<Waypoint> findWaypoint(const std::string &identifier) = 0;
         virtual bool initialize() = 0;
         virtual std::string getName() const = 0;
-        virtual WaypointType getProviderType() const = 0;
     };
 
     class AirwayWaypointProvider : public WaypointProvider
@@ -47,11 +46,6 @@ namespace RouteParser
             }
         }
 
-        WaypointType getProviderType() const override
-        {
-            return FIX;
-        }
-
         std::vector<Waypoint> findWaypoint(const std::string &identifier) override
         {
             std::vector<Waypoint> results;
@@ -67,6 +61,66 @@ namespace RouteParser
                     std::string id = query.getColumn(0).getText();
                     double lat = query.getColumn(1).getDouble();
                     double lon = query.getColumn(2).getDouble();
+
+                    results.emplace_back(Utils::GetWaypointTypeByIdentifier(id), id, erkir::spherical::Point(lat, lon));
+                }
+            }
+            catch (const SQLite::Exception &e)
+            {
+                Log::error("Error querying waypoint: {}", e.what());
+            }
+
+            return results;
+        }
+
+        std::string getName() const override
+        {
+            return name;
+        }
+    };
+
+    class NavdataWaypointProvider : public WaypointProvider
+    {
+    private:
+        std::unique_ptr<SQLite::Database> db;
+        std::string dbPath;
+        std::string name;
+
+    public:
+        NavdataWaypointProvider(const std::string &path, const std::string &providerName)
+            : dbPath(path), name(providerName) {}
+
+        bool initialize() override
+        {
+            try
+            {
+                db = std::make_unique<SQLite::Database>(dbPath, SQLite::OPEN_READONLY);
+                return true;
+            }
+            catch (const SQLite::Exception &e)
+            {
+                Log::error("Error opening database: {}", e.what());
+                return false;
+            }
+        }
+
+        std::vector<Waypoint> findWaypoint(const std::string &identifier) override
+        {
+            std::vector<Waypoint> results;
+
+            try
+            {
+                SQLite::Statement query(*db,
+                                        "SELECT ident, type, frequency_khz, latitude_deg, longitude_deg FROM waypoints WHERE identifier = ?");
+                query.bind(1, identifier);
+
+                while (query.executeStep())
+                {
+                    std::string id = query.getColumn(0).getText();
+                    std::string type = query.getColumn(1).getText();
+                    int frequency = query.getColumn(2).getInt();
+                    double lat = query.getColumn(3).getDouble();
+                    double lon = query.getColumn(4).getDouble();
 
                     results.emplace_back(Utils::GetWaypointTypeByIdentifier(id), id, erkir::spherical::Point(lat, lon));
                 }
@@ -109,7 +163,7 @@ namespace RouteParser
         }
 
         // Modified findWaypoint to work with multimap
-        std::vector<Waypoint> findWaypoint(const std::string &identifier, std::optional<WaypointType> type = std::nullopt)
+        std::vector<Waypoint> findWaypoint(const std::string &identifier)
         {
             // Check cache first if enabled
             if (useCache)
@@ -120,10 +174,7 @@ namespace RouteParser
                     std::vector<Waypoint> results;
                     for (auto it = range.first; it != range.second; ++it)
                     {
-                        if (!type || it->second.getType() == *type)
-                        {
-                            results.push_back(it->second);
-                        }
+                        results.push_back(it->second);
                     }
                     return results;
                 }
@@ -134,10 +185,6 @@ namespace RouteParser
             // Try each provider in order
             for (const auto &provider : providers)
             {
-                if (type && provider->getProviderType() != *type)
-                {
-                    continue;
-                }
 
                 auto providerResults = provider->findWaypoint(identifier);
                 if (!providerResults.empty())
@@ -165,11 +212,10 @@ namespace RouteParser
 
         // The new findWaypoint with position reference
         std::vector<Waypoint> findWaypoint(const std::string &identifier,
-                                           const erkir::spherical::Point &referencePoint,
-                                           std::optional<WaypointType> type = std::nullopt)
+                                           const erkir::spherical::Point &referencePoint)
         {
             // Get all waypoints first
-            auto waypoints = findWaypoint(identifier, type);
+            auto waypoints = findWaypoint(identifier);
 
             // Create multimap to sort by distance
             std::multimap<double, Waypoint> waypointsByDistance;
@@ -193,10 +239,9 @@ namespace RouteParser
 
         // Helper method to get just the closest waypoint
         std::optional<Waypoint> findClosestWaypoint(const std::string &identifier,
-                                                    const erkir::spherical::Point &referencePoint,
-                                                    std::optional<WaypointType> type = std::nullopt)
+                                                    const erkir::spherical::Point &referencePoint)
         {
-            auto waypoints = findWaypoint(identifier, referencePoint, type);
+            auto waypoints = findWaypoint(identifier, referencePoint);
             if (waypoints.empty())
             {
                 return std::nullopt;

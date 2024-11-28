@@ -28,17 +28,17 @@ namespace RouteParser
      * @param procedures The procedures to set.
      */
     static void
-    SetWaypoints(std::unordered_multimap<std::string, Waypoint> newWaypoints,
-                 std::unordered_multimap<std::string, Procedure> newProcedures)
+    SetProcedures(
+        std::unordered_multimap<std::string, Procedure> newProcedures)
     {
       std::lock_guard<std::mutex> lock(_mutex);
-      // waypointNetwork->initialCache(waypoints);
-      Log::info("Loaded {} waypoints into NavdataObject", waypoints.size());
 
       procedures = newProcedures;
       Log::info("Loaded {} procedures into NavdataObject", procedures.size());
     }
     static void LoadAirwayNetwork(std::string airwaysFilePath);
+
+    static void LoadWaypoints(std::string waypointsFilePath);
 
     static void LoadIntersectionWaypoints(std::string isecFilePath);
 

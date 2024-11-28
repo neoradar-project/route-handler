@@ -18,16 +18,17 @@ public:
 
   std::shared_ptr<ParserHandler> GetParser();
   void Bootstrap(ILogger logFunc,
-                 std::unordered_multimap<std::string, Waypoint> waypoints,
+                 std::string waypointsFile,
                  std::unordered_multimap<std::string, Procedure> procedures,
                  std::string airwaysFile, std::string isecFile = "")
   {
     Log::SetLogger(logFunc);
-    NavdataObject::SetWaypoints(waypoints, procedures);
+    NavdataObject::SetProcedures(procedures);
 
     // Create thread for loading airways
     // std::thread airwaysThread([&airwaysFile]()
     //                           { NavdataObject::LoadAirwayNetwork(airwaysFile); });
+    NavdataObject::LoadWaypoints(waypointsFile);
     NavdataObject::LoadAirwayNetwork(airwaysFile);
     // Optionally create thread for intersection waypoints
     std::thread isecThread;

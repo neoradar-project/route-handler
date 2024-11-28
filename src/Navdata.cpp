@@ -21,6 +21,23 @@ void NavdataObject::LoadAirwayNetwork(std::string airwaysFilePath)
   airwayNetwork = std::make_shared<AirwayNetwork>(airwaysFilePath);
 }
 
+void NavdataObject::LoadWaypoints(std::string waypointsFilePath)
+{
+
+  if (waypointsFilePath.empty() || !std::filesystem::exists(waypointsFilePath))
+  {
+    Log::error("Waypoints file does not exist: {}", waypointsFilePath);
+    return;
+  }
+
+  if (!waypointNetwork)
+  {
+    waypointNetwork = std::make_shared<WaypointNetwork>();
+  }
+  waypointNetwork->addProvider(std::make_unique<AirwayWaypointProvider>(
+      waypointsFilePath, "Waypoints DB"));
+}
+
 void NavdataObject::LoadIntersectionWaypoints(std::string isecFilePath)
 {
   try
