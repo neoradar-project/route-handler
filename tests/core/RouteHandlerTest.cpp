@@ -43,6 +43,17 @@ namespace RouteHandlerTests
     EXPECT_EQ(parsedRoute.totalTokens, 0);
   }
 
+  TEST_F(RouteHandlerTest, RouteWithReducedSID)
+  {
+    auto parsedRoute = handler.GetParser()->ParseRawRoute(
+        "TE61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
+
+    EXPECT_BASIC_ROUTE(parsedRoute);
+    // EXPECT_EQ(parsedRoute.rawRoute,
+    //           "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
+    EXPECT_EQ(parsedRoute.totalTokens, 7);
+  }
+
   TEST_F(RouteHandlerTest, BasicRouteWithSIDAndSTAR)
   {
     auto parsedRoute = handler.GetParser()->ParseRawRoute(

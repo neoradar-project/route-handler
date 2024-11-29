@@ -450,7 +450,7 @@ bool RouteParser::ParserHandler::ParseAirway(
     for (const auto &segment : airwaySegments.segments)
     {
       parsedRoute.waypoints.push_back(
-          Utils::WaypointToRouteWaypoint(nextWaypoint.value(), currentFlightRule));
+          Utils::WaypointToRouteWaypoint(segment.to, currentFlightRule));
     }
     return true;
   }

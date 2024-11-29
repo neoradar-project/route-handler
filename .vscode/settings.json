@@ -98,6 +98,7 @@
     "cwctype": "cpp",
     "scoped_allocator": "cpp",
     "valarray": "cpp",
-    "resumable": "cpp"
+    "resumable": "cpp",
+    "__locale": "cpp"
   }
 }

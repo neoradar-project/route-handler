@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 namespace RouteParser
 {
@@ -36,21 +37,71 @@ namespace RouteParser
       return std::nullopt;
     }
 
+    // Helper function to extract the numeric and letter suffix
+    static std::pair<std::string, std::string> ExtractComponents(const std::string &identifier)
+    {
+      std::string prefix;
+      std::string suffix;
+
+      bool numericStarted = false;
+      for (char c : identifier)
+      {
+        if (!numericStarted && std::isalpha(c))
+        {
+          prefix += c;
+        }
+        else
+        {
+          numericStarted = true;
+          suffix += c;
+        }
+      }
+
+      return {prefix, suffix};
+    }
+
+    // Helper function to check if two procedure names potentially match
+    static bool AreProceduresRelated(const std::string &proc1, const std::string &proc2)
+    {
+      auto [prefix1, suffix1] = ExtractComponents(proc1);
+      auto [prefix2, suffix2] = ExtractComponents(proc2);
+
+      // Check if the prefixes are similar (allowing for one character difference)
+      if (prefix1.length() == prefix2.length() ||
+          std::abs(static_cast<int>(prefix1.length() - prefix2.length())) == 1)
+      {
+        int differences = 0;
+        size_t maxLen = std::max(prefix1.length(), prefix2.length());
+        for (size_t i = 0; i < maxLen; i++)
+        {
+          char c1 = i < prefix1.length() ? prefix1[i] : 0;
+          char c2 = i < prefix2.length() ? prefix2[i] : 0;
+          if (c1 != c2)
+            differences++;
+        }
+        // Allow up to one character difference in the prefix
+        if (differences <= 1)
+        {
+          // If suffixes match exactly, it's likely the same procedure
+          return suffix1 == suffix2;
+        }
+      }
+      return false;
+    }
+
     static FoundProcedure FindProcedure(const std::string &token,
                                         const std::string &icao,
-                                        ProcedureType type, int tokenIndex)
+                                        ProcedureType type,
+                                        int tokenIndex)
     {
       std::optional<std::string> runway = FindRunway(token);
       const std::vector<std::string> parts = absl::StrSplit(token, '/');
-      std::string procedureToken =
-          runway ? parts[0] : token; // If we have a runway, we know that the
-                                     // string is split in at least 2 parts
+      std::string procedureToken = runway ? parts[0] : token;
 
       if (runway && procedureToken.length() == 4)
       {
         if (procedureToken == icao)
         {
-          // Found a valid ICAO + runway combination matching dep or dest
           return FoundProcedure{procedureToken, runway, std::nullopt, {}};
         }
         else
@@ -63,19 +114,26 @@ namespace RouteParser
                   ParsingErrorType::INVALID_RUNWAY,
                   fmt::format("Expected runway for {} but found a runway for {}",
                               icao, procedureToken),
-                  tokenIndex, token, ParsingErrorLevel::ERROR}}};
+                  tokenIndex,
+                  token,
+                  ParsingErrorLevel::ERROR}}};
         }
       }
 
       const auto &procedures = NavdataObject::GetProcedures();
       std::vector<RouteParser::Procedure> matchingProcedures;
 
-      for (auto it = procedures.equal_range(procedureToken);
-           it.first != it.second; ++it.first)
+      // Find all procedures that could match
+      for (auto it = procedures.begin(); it != procedures.end(); ++it)
       {
-        if (it.first->second.icao == icao && it.first->second.type == type)
+        const auto &procedure = it->second;
+        if (procedure.icao == icao && procedure.type == type)
         {
-          matchingProcedures.push_back(it.first->second);
+          if (procedure.name == procedureToken ||
+              AreProceduresRelated(procedure.name, procedureToken))
+          {
+            matchingProcedures.push_back(procedure);
+          }
         }
       }
 
@@ -85,11 +143,13 @@ namespace RouteParser
             procedureToken,
             runway,
             std::nullopt,
-            {ParsingError{ParsingErrorType::UNKNOWN_PROCEDURE,
-                          fmt::format("No matching procedure found for {} at {}, "
-                                      "returning unextracted procedure",
-                                      procedureToken, icao),
-                          tokenIndex, procedureToken, ParsingErrorLevel::INFO}}};
+            {ParsingError{
+                ParsingErrorType::UNKNOWN_PROCEDURE,
+                fmt::format("No matching procedure found for {} at {}",
+                            procedureToken, icao),
+                tokenIndex,
+                procedureToken,
+                ParsingErrorLevel::INFO}}};
       }
 
       if (runway)
@@ -98,26 +158,24 @@ namespace RouteParser
         {
           if (procedure.runway == runway)
           {
-            // Full, valid match for procedure + runway
-            return FoundProcedure{procedureToken, runway, procedure};
+            return FoundProcedure{procedure.name, runway, procedure};
           }
         }
 
-        // No matching runway found for procedure, return first matching procedure
         return FoundProcedure{
-            procedureToken,
+            matchingProcedures[0].name,
             runway,
             matchingProcedures[0],
             {ParsingError{
                 ParsingErrorType::PROCEDURE_RUNWAY_MISMATCH,
-                fmt::format("No matching runway {} found for procedure {} at {}, "
-                            "returning first matching procedure",
+                fmt::format("No matching runway {} found for procedure {} at {}",
                             runway.value_or("N/A"), procedureToken, icao),
-                tokenIndex, procedureToken, ParsingErrorLevel::ERROR}}};
+                tokenIndex,
+                procedureToken,
+                ParsingErrorLevel::ERROR}}};
       }
 
-      // No runway found, return first matching procedure
-      return FoundProcedure{procedureToken, runway, matchingProcedures[0]};
+      return FoundProcedure{matchingProcedures[0].name, runway, matchingProcedures[0]};
     }
   };
 
