@@ -14,6 +14,7 @@
 #include <iostream>
 #include "AirwayNetwork.h"
 #include "WaypointNetwork.h"
+#include "AirportNetwork.h"
 namespace RouteParser
 {
 
@@ -39,6 +40,8 @@ namespace RouteParser
     static void LoadAirwayNetwork(std::string airwaysFilePath);
 
     static void LoadWaypoints(std::string waypointsFilePath);
+
+    static void LoadAirports(std::string airportsFilePath);
 
     static void LoadIntersectionWaypoints(std::string isecFilePath);
 
@@ -136,6 +139,7 @@ namespace RouteParser
     inline static std::unordered_multimap<std::string, Procedure> procedures = {};
     inline static std::shared_ptr<AirwayNetwork> airwayNetwork;
     inline static std::shared_ptr<WaypointNetwork> waypointNetwork;
+    inline static std::shared_ptr<AirportNetwork> airportNetwork;
   };
 
   // const static auto NavdataContainer = std::make_shared<NavdataObject>();

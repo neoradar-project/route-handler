@@ -10,7 +10,8 @@
 #include <unordered_map>
 using namespace RouteParser;
 
-class RouteHandler {
+class RouteHandler
+{
 public:
     RouteHandler()
     {
@@ -25,14 +26,15 @@ public:
 
     std::shared_ptr<ParserHandler> GetParser();
     void Bootstrap(ILogger logFunc, std::string navdataDbFile,
-        std::unordered_multimap<std::string, Procedure> procedures,
-        std::string airwaysDbFile)
+                   std::unordered_multimap<std::string, Procedure> procedures,
+                   std::string airwaysDbFile)
     {
         Log::SetLogger(logFunc);
         navdata->SetProcedures(procedures);
 
         navdata->LoadAirwayNetwork(airwaysDbFile);
         navdata->LoadWaypoints(navdataDbFile);
+        navdata->LoadAirports(navdataDbFile);
 
         Log::info("RouteHandler is ready.");
         this->isReady = true;

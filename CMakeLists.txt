@@ -44,6 +44,7 @@ target_sources(route-handler
         src/Navdata.cpp
         src/Parser.cpp
         src/AirwayNetwork.cpp
+        src/AirportNetwork.cpp
         )
 
 target_include_directories(route-handler

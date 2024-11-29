@@ -40,12 +40,12 @@ namespace RouteHandlerTests
 
         PRINT_ALL_PARSING_ERRORS(parsedRoute);
 
-        for (const auto &waypoint : parsedRoute.waypoints)
-        {
-            std::cout << waypoint.getIdentifier() << " ";
-        }
+        // for (const auto &waypoint : parsedRoute.waypoints)
+        // {
+        //     std::cout << waypoint.getIdentifier() << " ";
+        // }
 
-        std::cout << std::endl;
+        // std::cout << std::endl;
     }
 
 } // namespace RouteHandlerTests
