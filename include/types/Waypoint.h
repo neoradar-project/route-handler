@@ -1,6 +1,8 @@
 #pragma once
 #include "erkir/geo/sphericalpoint.h"
 #include <string>
+#include "JsonConverters.h"
+
 namespace RouteParser
 {
 
@@ -46,10 +48,13 @@ namespace RouteParser
       return this->position.distanceTo(other.getPosition());
     }
 
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(Waypoint, type, identifier, position, frequencyHz);
+
   private:
     WaypointType type;
     std::string identifier;
     int frequencyHz;
     erkir::spherical::Point position;
   };
+
 } // namespace RouteParser

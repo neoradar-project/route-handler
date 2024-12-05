@@ -28,6 +28,15 @@ if(NOT erkir_FOUND)
     endif()
 endif()
 
+find_package(nlohmann_json CONFIG QUIET)
+
+if(NOT nlohmann_json_FOUND)
+    # If not found, build from source
+    if(NOT TARGET nlohmann_json::nlohmann_json)
+        add_subdirectory(extern/json)
+    endif()
+endif()
+
 add_subdirectory(extern/fmt)
 find_package(absl CONFIG QUIET)
 if(NOT absl_FOUND)
@@ -62,7 +71,7 @@ target_link_libraries(route-handler
         absl::strings
         absl::flat_hash_map
         mio
-        
+        nlohmann_json::nlohmann_json
 )
 
 configure_file(
@@ -71,7 +80,7 @@ configure_file(
     @ONLY
 )
 
-install(TARGETS route-handler erkir fmt
+install(TARGETS route-handler erkir fmt nlohmann_json
     EXPORT route-handler-targets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
