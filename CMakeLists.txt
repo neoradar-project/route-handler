@@ -80,7 +80,7 @@ configure_file(
     @ONLY
 )
 
-install(TARGETS route-handler erkir fmt 
+install(TARGETS route-handler erkir fmt nlohmann_json
     EXPORT route-handler-targets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
