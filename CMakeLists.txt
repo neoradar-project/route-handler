@@ -29,13 +29,12 @@ if(NOT erkir_FOUND)
 endif()
 
 find_package(nlohmann_json CONFIG QUIET)
-
 if(NOT nlohmann_json_FOUND)
-    # If not found, build from source
-    if(NOT TARGET nlohmann_json::nlohmann_json)
-        add_subdirectory(extern/json)
-    endif()
+    # Build locally
+    add_subdirectory(extern/json)
+    set(LOCAL_NLOHMANN_JSON ON)
 endif()
+
 
 add_subdirectory(extern/fmt)
 find_package(absl CONFIG QUIET)
@@ -88,6 +87,18 @@ install(TARGETS route-handler erkir fmt
     RUNTIME DESTINATION bin
     PUBLIC_HEADER DESTINATION include
 )
+
+# Only install nlohmann_json if we built it locally
+if(LOCAL_NLOHMANN_JSON)
+    install(TARGETS nlohmann_json
+        EXPORT route-handler-targets
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+        PUBLIC_HEADER DESTINATION include
+    )
+endif()
+
 
 install(DIRECTORY include/ DESTINATION include)
 
