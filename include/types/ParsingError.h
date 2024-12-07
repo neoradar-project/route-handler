@@ -4,7 +4,7 @@
 
 namespace RouteParser {
 
-enum ParsingErrorLevel { INFO, ERROR };
+enum ParsingErrorLevel { INFO, PARSE_ERROR };
 
 enum ParsingErrorType {
     ROUTE_EMPTY,

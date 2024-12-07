@@ -60,6 +60,7 @@ target_include_directories(route-handler
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/extern/compile-time-regular-expressions/single-header>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/types>
         $<INSTALL_INTERFACE:include>
 )
 
@@ -80,7 +81,7 @@ configure_file(
     @ONLY
 )
 
-install(TARGETS route-handler erkir fmt nlohmann_json
+install(TARGETS route-handler erkir fmt
     EXPORT route-handler-targets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
