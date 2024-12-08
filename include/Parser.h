@@ -81,6 +81,9 @@ namespace RouteParser
     ParsedRoute ParseRawRoute(std::string route, std::string origin,
                               std::string destination,
                               FlightRule filedFlightRule = IFR);
+
+    void AddDirectSegment(ParsedRoute &parsedRoute,
+                          const RouteWaypoint &fromWaypoint, const RouteWaypoint &toWaypoint);
   };
 
 } // namespace RouteParser

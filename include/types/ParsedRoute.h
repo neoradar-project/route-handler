@@ -7,12 +7,19 @@
 
 namespace RouteParser
 {
-
+  struct ParsedRouteSegment
+  {
+    RouteWaypoint from;
+    RouteWaypoint to;
+    std::string airway; // "DCT" for direct connections
+    int minimumLevel = -1;
+  };
   struct ParsedRoute
   {
     std::string rawRoute = "";
     std::vector<RouteWaypoint> waypoints = {};
     std::vector<ParsingError> errors = {};
+    std::vector<ParsedRouteSegment> segments = {};
     int totalTokens = 0;
     std::optional<std::string> departureRunway = std::nullopt;
     std::optional<std::string> arrivalRunway = std::nullopt;
