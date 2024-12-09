@@ -3,6 +3,7 @@
 #include <erkir/geo/ellipsoidalpoint.h>
 #include <erkir/geo/sphericalpoint.h>
 #include <nlohmann/json.hpp>
+#include <optional>
 
 namespace erkir::spherical {
 inline void to_json(
