@@ -53,24 +53,23 @@ public:
 
     // Handle direct ICAO+runway case
     if (runway && procedureToken.length() == 4 && procedureToken == icao) {
-      return FoundProcedure{procedureToken, runway, std::nullopt};
+      return FoundProcedure{std::nullopt, runway, std::nullopt};
     }
 
     // Safe procedures access
     const auto &procedures = NavdataObject::GetProcedures();
     std::vector<RouteParser::Procedure> matchingProcedures;
 
-    for (auto it = procedures.equal_range(procedureToken);
-         it.first != it.second; ++it.first) {
-      if (it.first->second.icao == icao && it.first->second.type == type) {
-        matchingProcedures.push_back(it.first->second);
+    auto range = procedures.equal_range(procedureToken);
+    for (auto it = range.first; it != range.second; ++it) {
+      if (it->second.icao == icao && it->second.type == type) {
+        matchingProcedures.push_back(it->second);
       }
     }
 
     if (matchingProcedures.empty()) {
-      // No procedure found for the given token, but runway might have been
-      // found
-      return FoundProcedure{std::nullopt, runway, std::nullopt};
+      // No procedure found for the given token, and runway has been checked against icaos
+      return FoundProcedure{std::nullopt, std::nullopt, std::nullopt};
     }
 
     // There is no runway but matching procedures
@@ -92,7 +91,7 @@ public:
     // No matching runway found for procedure, return the runway with an error
     return FoundProcedure{
         procedureToken,
-        runway,
+        {},
         matchingProcedures[0],
         {ParsingError{
             ParsingErrorType::PROCEDURE_RUNWAY_MISMATCH,

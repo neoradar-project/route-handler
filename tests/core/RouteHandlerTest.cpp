@@ -110,7 +110,7 @@ namespace RouteHandlerTests
 
         EXPECT_EQ(parsedRoute.departureRunway, std::nullopt);
         EXPECT_EQ(parsedRoute.arrivalRunway, std::nullopt);
-        EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::PARSE_ERROR, 2);
+        EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::INFO, 2);
         EXPECT_EQ(parsedRoute.totalTokens, 5);
     }
 
