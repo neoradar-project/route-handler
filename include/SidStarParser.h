@@ -70,6 +70,11 @@ public:
         return FoundProcedure{std::nullopt, runway, std::nullopt};
       }
 
+      // There is no runway but matching procedures
+      if (!runway) {
+        return FoundProcedure{procedureToken, runway, matchingProcedures[0]};
+      }
+
       if (runway) {
         // There is a runway, there are matching procedure, let's try and catch
         // the right one
@@ -79,11 +84,6 @@ public:
             return FoundProcedure{procedureToken, runway, procedure};
           }
         }
-      }
-
-      // There is no runway but matching procedures
-      if (!runway) {
-        return FoundProcedure{procedureToken, runway, matchingProcedures[0]};
       }
 
       // No matching runway found for procedure, return the runway with an error
