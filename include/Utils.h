@@ -38,8 +38,9 @@ namespace RouteParser
     {
       for (const auto &waypoint : parsedWaypoints)
       {
+        auto newPos = erkir::spherical::Point(waypoint.getPosition().latitude(), waypoint.getPosition().longitude());
         waypoints.push_back(RouteParser::RouteWaypoint(
-            waypoint.getType(), waypoint.getIdentifier(), waypoint.getPosition(),
+            waypoint.getType(), waypoint.getIdentifier(), newPos,
             waypoint.getFrequencyHz(), currentFlightRule));
       }
     }
@@ -110,8 +111,9 @@ namespace RouteParser
         std::optional<RouteWaypoint::PlannedAltitudeAndSpeed> plannedPosition =
             std::nullopt)
     {
+      auto newPos = erkir::spherical::Point(waypoint.getPosition().latitude(), waypoint.getPosition().longitude());
       return RouteParser::RouteWaypoint(
-          waypoint.getType(), waypoint.getIdentifier(), waypoint.getPosition(),
+          waypoint.getType(), waypoint.getIdentifier(), newPos,
           waypoint.getFrequencyHz(), currentFlightRule, plannedPosition);
     }
 
