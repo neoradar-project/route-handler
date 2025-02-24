@@ -49,6 +49,10 @@ namespace RouteHandlerTests
 
         EXPECT_BASIC_ROUTE(parsedRoute);
         EXPECT_EQ(parsedRoute.rawRoute, "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
+        EXPECT_EQ(parsedRoute.departureRunway, "06");
+        EXPECT_EQ(parsedRoute.arrivalRunway, "07R");
+        EXPECT_EQ(parsedRoute.SID, "TES61X");
+        EXPECT_EQ(parsedRoute.STAR, "ABBEY3A");
         EXPECT_EQ(parsedRoute.totalTokens, 7);
     }
 

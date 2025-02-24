@@ -255,7 +255,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
         // Check if token is a known airway
         bool isAirway = NavdataObject::GetAirwayNetwork()->airwayExists(token);
 
-        if (isAirway && i > 0 && i < routeParts.size() && previousWaypoint.has_value())
+        if (isAirway && i > 0 && i < routeParts.size() - 1 && previousWaypoint.has_value())
         {
             const auto &nextToken = routeParts[i + 1];
             // Verify next token isn't a SID/STAR (no '/')

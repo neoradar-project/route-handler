@@ -45,7 +45,6 @@ public:
     std::optional<std::string> runway = FindRunway(token);
     const std::vector<std::string> parts = absl::StrSplit(token, '/');
 
-    // Handle single token case properly
     std::string procedureToken = token;
     if (!parts.empty() && parts.size() >= 2) {
       procedureToken = parts[0];
