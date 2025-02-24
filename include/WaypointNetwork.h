@@ -4,6 +4,7 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include <filesystem>
 #include "types/Waypoint.h"
 #include "erkir/geo/sphericalpoint.h"
 #include "Log.h"
@@ -19,37 +20,169 @@ namespace RouteParser
         virtual std::vector<Waypoint> findWaypoint(const std::string &identifier) = 0;
         virtual std::optional<Waypoint> findClosestWaypoint(const std::string &identifier, const erkir::spherical::Point &reference) = 0;
         virtual bool initialize() = 0;
+        virtual bool isInitialized() const = 0;
         virtual std::string getName() const = 0;
     };
 
-    class AirwayWaypointProvider : public WaypointProvider
+    class BaseWaypointProvider : public WaypointProvider
     {
-    private:
+    protected:
         std::unique_ptr<SQLite::Database> db;
         std::string dbPath;
         std::string name;
+        bool initialized{false};
 
-    public:
-        AirwayWaypointProvider(const std::string &path, const std::string &providerName)
-            : dbPath(path), name(providerName) {}
-
-        bool initialize() override
+        bool isValidDbPath() const noexcept
         {
+            if (dbPath.empty())
+            {
+                return false;
+            }
+
             try
             {
-                db = std::make_unique<SQLite::Database>(dbPath, SQLite::OPEN_READONLY);
-                return true;
+                std::filesystem::path path(dbPath);
+                return std::filesystem::exists(path) &&
+                       std::filesystem::is_regular_file(path);
             }
-            catch (const SQLite::Exception &e)
+            catch (const std::exception &e)
             {
-                Log::error("Error opening database: {}", e.what());
+                Log::error("[{}] Error validating database path: {}", name, e.what());
                 return false;
             }
         }
 
+        virtual bool validateDatabase()
+        {
+            return true; // Default implementation - override in derived classes
+        }
+
+    public:
+        BaseWaypointProvider(const std::string &path, const std::string &providerName)
+            : dbPath(path), name(providerName) {}
+
+        bool isInitialized() const override
+        {
+            return initialized && db != nullptr;
+        }
+
+        std::string getName() const override
+        {
+            return name;
+        }
+
+        bool initialize() override
+        {
+            if (!isValidDbPath())
+            {
+                Log::error("[{}] Invalid database path: {}", name, dbPath);
+                initialized = false;
+                return false;
+            }
+
+            try
+            {
+                db = std::make_unique<SQLite::Database>(dbPath, SQLite::OPEN_READONLY);
+
+                if (!validateDatabase())
+                {
+                    Log::error("[{}] Database validation failed for: {}", name, dbPath);
+                    db.reset();
+                    initialized = false;
+                    return false;
+                }
+
+                initialized = true;
+                return true;
+            }
+            catch (const SQLite::Exception &e)
+            {
+                Log::error("[{}] Error opening database: {}", name, e.what());
+                initialized = false;
+                return false;
+            }
+            catch (const std::exception &e)
+            {
+                Log::error("[{}] Unexpected error opening database: {}", name, e.what());
+                initialized = false;
+                return false;
+            }
+        }
+    };
+
+    class AirwayWaypointProvider : public BaseWaypointProvider
+    {
+    protected:
+        bool validateDatabase() override
+        {
+            if (!db)
+                return false;
+
+            try
+            {
+                // Check if the required table exists
+                SQLite::Statement tableCheck(*db,
+                                             "SELECT name FROM sqlite_master WHERE type='table' AND name='waypoints'");
+
+                if (!tableCheck.executeStep())
+                {
+                    Log::error("[{}] Required 'waypoints' table not found", name);
+                    return false;
+                }
+
+                // Check columns
+                SQLite::Statement columnCheck(*db, "PRAGMA table_info(waypoints)");
+                std::vector<std::string> requiredColumns = {"identifier", "latitude", "longitude"};
+                std::vector<std::string> foundColumns;
+
+                while (columnCheck.executeStep())
+                {
+                    foundColumns.push_back(columnCheck.getColumn(1).getText());
+                }
+
+                for (const auto &required : requiredColumns)
+                {
+                    if (std::find(foundColumns.begin(), foundColumns.end(), required) == foundColumns.end())
+                    {
+                        Log::error("[{}] Required column '{}' not found in waypoints table", name, required);
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            catch (const SQLite::Exception &e)
+            {
+                Log::error("[{}] Error validating database schema: {}", name, e.what());
+                return false;
+            }
+            catch (const std::exception &e)
+            {
+                Log::error("[{}] Unexpected error during database validation: {}", name, e.what());
+                return false;
+            }
+        }
+
+    public:
+        AirwayWaypointProvider(const std::string &path, const std::string &providerName)
+            : BaseWaypointProvider(path, providerName) {}
+
         std::vector<Waypoint> findWaypoint(const std::string &identifier) override
         {
             std::vector<Waypoint> results;
+
+            if (!isInitialized())
+            {
+                Log::error("[{}] Attempted to find waypoint with uninitialized database", name);
+                return results;
+            }
+
+            if (identifier.empty())
+            {
+                Log::error("[{}] Empty waypoint identifier provided", name);
+                return results;
+            }
+
             try
             {
                 SQLite::Statement query(*db, "SELECT identifier, latitude, longitude FROM waypoints WHERE identifier = ?");
@@ -58,20 +191,38 @@ namespace RouteParser
                 while (query.executeStep())
                 {
                     std::string id = query.getColumn(0).getText();
-                    double lat = query.getColumn(1).getDouble();
-                    double lon = query.getColumn(2).getDouble();
+                    double lat = query.getColumn(1).isNull() ? 0.0 : query.getColumn(1).getDouble();
+                    double lon = query.getColumn(2).isNull() ? 0.0 : query.getColumn(2).getDouble();
+
                     results.emplace_back(Utils::GetWaypointTypeByIdentifier(id), id, erkir::spherical::Point(lat, lon));
                 }
             }
             catch (const SQLite::Exception &e)
             {
-                Log::error("Error querying waypoint: {}", e.what());
+                Log::error("[{}] Error querying waypoint {}: {}", name, identifier, e.what());
             }
+            catch (const std::exception &e)
+            {
+                Log::error("[{}] Unexpected error querying waypoint {}: {}", name, identifier, e.what());
+            }
+
             return results;
         }
 
         std::optional<Waypoint> findClosestWaypoint(const std::string &identifier, const erkir::spherical::Point &reference) override
         {
+            if (!isInitialized())
+            {
+                Log::error("[{}] Attempted to find closest waypoint with uninitialized database", name);
+                return std::nullopt;
+            }
+
+            if (identifier.empty())
+            {
+                Log::error("[{}] Empty waypoint identifier provided for closest search", name);
+                return std::nullopt;
+            }
+
             try
             {
                 SQLite::Statement query(*db,
@@ -81,8 +232,8 @@ namespace RouteParser
                                         "WHERE identifier = ? "
                                         "ORDER BY distance ASC LIMIT 1");
 
-                double lat = reference.latitude().degrees();  // Convert to double
-                double lon = reference.longitude().degrees(); // Convert to double
+                double lat = reference.latitude().degrees();
+                double lon = reference.longitude().degrees();
 
                 query.bind(1, lat);
                 query.bind(2, lon);
@@ -92,52 +243,99 @@ namespace RouteParser
                 if (query.executeStep())
                 {
                     std::string id = query.getColumn(0).getText();
-                    double lat = query.getColumn(1).getDouble();
-                    double lon = query.getColumn(2).getDouble();
+                    double lat = query.getColumn(1).isNull() ? 0.0 : query.getColumn(1).getDouble();
+                    double lon = query.getColumn(2).isNull() ? 0.0 : query.getColumn(2).getDouble();
+
                     return Waypoint(Utils::GetWaypointTypeByIdentifier(id), id, erkir::spherical::Point(lat, lon));
                 }
             }
             catch (const SQLite::Exception &e)
             {
-                Log::error("Error querying closest waypoint: {}", e.what());
+                Log::error("[{}] Error querying closest waypoint {}: {}", name, identifier, e.what());
             }
-            return std::nullopt;
-        }
+            catch (const std::exception &e)
+            {
+                Log::error("[{}] Unexpected error querying closest waypoint {}: {}", name, identifier, e.what());
+            }
 
-        std::string getName() const override
-        {
-            return name;
+            return std::nullopt;
         }
     };
 
-    class NavdataWaypointProvider : public WaypointProvider
+    class NavdataWaypointProvider : public BaseWaypointProvider
     {
-    private:
-        std::unique_ptr<SQLite::Database> db;
-        std::string dbPath;
-        std::string name;
-
-    public:
-        NavdataWaypointProvider(const std::string &path, const std::string &providerName)
-            : dbPath(path), name(providerName) {}
-
-        bool initialize() override
+    protected:
+        bool validateDatabase() override
         {
+            if (!db)
+                return false;
+
             try
             {
-                db = std::make_unique<SQLite::Database>(dbPath, SQLite::OPEN_READONLY);
+                // Check if the required table exists
+                SQLite::Statement tableCheck(*db,
+                                             "SELECT name FROM sqlite_master WHERE type='table' AND name='navaids'");
+
+                if (!tableCheck.executeStep())
+                {
+                    Log::error("[{}] Required 'navaids' table not found", name);
+                    return false;
+                }
+
+                // Check columns
+                SQLite::Statement columnCheck(*db, "PRAGMA table_info(navaids)");
+                std::vector<std::string> requiredColumns = {
+                    "ident", "type", "frequency_khz", "latitude_deg", "longitude_deg"};
+                std::vector<std::string> foundColumns;
+
+                while (columnCheck.executeStep())
+                {
+                    foundColumns.push_back(columnCheck.getColumn(1).getText());
+                }
+
+                for (const auto &required : requiredColumns)
+                {
+                    if (std::find(foundColumns.begin(), foundColumns.end(), required) == foundColumns.end())
+                    {
+                        Log::error("[{}] Required column '{}' not found in navaids table", name, required);
+                        return false;
+                    }
+                }
+
                 return true;
             }
             catch (const SQLite::Exception &e)
             {
-                Log::error("Error opening database: {}", e.what());
+                Log::error("[{}] Error validating database schema: {}", name, e.what());
+                return false;
+            }
+            catch (const std::exception &e)
+            {
+                Log::error("[{}] Unexpected error during database validation: {}", name, e.what());
                 return false;
             }
         }
 
+    public:
+        NavdataWaypointProvider(const std::string &path, const std::string &providerName)
+            : BaseWaypointProvider(path, providerName) {}
+
         std::vector<Waypoint> findWaypoint(const std::string &identifier) override
         {
             std::vector<Waypoint> results;
+
+            if (!isInitialized())
+            {
+                Log::error("[{}] Attempted to find waypoint with uninitialized database", name);
+                return results;
+            }
+
+            if (identifier.empty())
+            {
+                Log::error("[{}] Empty waypoint identifier provided", name);
+                return results;
+            }
+
             try
             {
                 SQLite::Statement query(*db,
@@ -149,22 +347,40 @@ namespace RouteParser
                 {
                     std::string id = query.getColumn(0).getText();
                     std::string type = query.getColumn(1).getText();
-                    int frequency = query.getColumn(2).getInt();
-                    double lat = query.getColumn(3).getDouble();
-                    double lon = query.getColumn(4).getDouble();
+                    int frequency = query.getColumn(2).isNull() ? 0 : query.getColumn(2).getInt();
+                    double lat = query.getColumn(3).isNull() ? 0.0 : query.getColumn(3).getDouble();
+                    double lon = query.getColumn(4).isNull() ? 0.0 : query.getColumn(4).getDouble();
+
                     results.emplace_back(Utils::GetWaypointTypeByTypeString(id), id,
                                          erkir::spherical::Point(lat, lon), frequency * 1000);
                 }
             }
             catch (const SQLite::Exception &e)
             {
-                Log::error("Error querying waypoint: {}", e.what());
+                Log::error("[{}] Error querying waypoint {}: {}", name, identifier, e.what());
             }
+            catch (const std::exception &e)
+            {
+                Log::error("[{}] Unexpected error querying waypoint {}: {}", name, identifier, e.what());
+            }
+
             return results;
         }
 
         std::optional<Waypoint> findClosestWaypoint(const std::string &identifier, const erkir::spherical::Point &reference) override
         {
+            if (!isInitialized())
+            {
+                Log::error("[{}] Attempted to find closest waypoint with uninitialized database", name);
+                return std::nullopt;
+            }
+
+            if (identifier.empty())
+            {
+                Log::error("[{}] Empty waypoint identifier provided for closest search", name);
+                return std::nullopt;
+            }
+
             try
             {
                 SQLite::Statement query(*db,
@@ -174,8 +390,8 @@ namespace RouteParser
                                         "WHERE ident = ? "
                                         "ORDER BY distance ASC LIMIT 1");
 
-                double lat = reference.latitude().degrees();  // Convert to double
-                double lon = reference.longitude().degrees(); // Convert to double
+                double lat = reference.latitude().degrees();
+                double lon = reference.longitude().degrees();
 
                 query.bind(1, lat);
                 query.bind(2, lon);
@@ -186,23 +402,24 @@ namespace RouteParser
                 {
                     std::string id = query.getColumn(0).getText();
                     std::string type = query.getColumn(1).getText();
-                    int frequency = query.getColumn(2).getInt();
-                    double lat = query.getColumn(3).getDouble();
-                    double lon = query.getColumn(4).getDouble();
+                    int frequency = query.getColumn(2).isNull() ? 0 : query.getColumn(2).getInt();
+                    double lat = query.getColumn(3).isNull() ? 0.0 : query.getColumn(3).getDouble();
+                    double lon = query.getColumn(4).isNull() ? 0.0 : query.getColumn(4).getDouble();
+
                     return Waypoint(Utils::GetWaypointTypeByTypeString(id), id,
                                     erkir::spherical::Point(lat, lon), frequency * 1000);
                 }
             }
             catch (const SQLite::Exception &e)
             {
-                Log::error("Error querying closest waypoint: {}", e.what());
+                Log::error("[{}] Error querying closest waypoint {}: {}", name, identifier, e.what());
             }
-            return std::nullopt;
-        }
+            catch (const std::exception &e)
+            {
+                Log::error("[{}] Unexpected error querying closest waypoint {}: {}", name, identifier, e.what());
+            }
 
-        std::string getName() const override
-        {
-            return name;
+            return std::nullopt;
         }
     };
 
@@ -212,102 +429,197 @@ namespace RouteParser
         std::vector<std::unique_ptr<WaypointProvider>> providers;
         std::unordered_multimap<std::string, Waypoint> cache;
         bool useCache;
+        bool initialized{false};
 
     public:
         WaypointNetwork(bool enableCache = true) : useCache(enableCache) {}
 
-        void addProvider(std::unique_ptr<WaypointProvider> provider)
+        bool isInitialized() const
         {
-            if (provider->initialize())
+            return initialized && !providers.empty();
+        }
+
+        bool addProvider(std::unique_ptr<WaypointProvider> provider)
+        {
+            if (!provider)
             {
-                providers.push_back(std::move(provider));
+                Log::error("Attempted to add null provider to WaypointNetwork");
+                return false;
+            }
+
+            try
+            {
+                if (provider->initialize())
+                {
+                    Log::info("Successfully initialized waypoint provider: {}", provider->getName());
+                    providers.push_back(std::move(provider));
+                    initialized = true;
+                    return true;
+                }
+                else
+                {
+                    Log::warn("Failed to initialize waypoint provider: {}", provider->getName());
+                    return false;
+                }
+            }
+            catch (const std::exception &e)
+            {
+                Log::error("Exception adding provider {}: {}",
+                           provider->getName(), e.what());
+                return false;
             }
         }
 
         void initialCache(std::unordered_multimap<std::string, Waypoint> initialCache)
         {
-            cache = std::move(initialCache);
+            try
+            {
+                cache = std::move(initialCache);
+            }
+            catch (const std::exception &e)
+            {
+                Log::error("Error initializing cache: {}", e.what());
+                cache.clear();
+            }
         }
 
-        // Original findWaypoint with early stopping
         std::vector<Waypoint> findWaypoint(const std::string &identifier)
         {
-            // Check cache first
-            if (useCache)
+            if (!isInitialized())
             {
-                auto range = cache.equal_range(identifier);
-                if (range.first != range.second)
-                {
-                    std::vector<Waypoint> results;
-                    for (auto it = range.first; it != range.second; ++it)
-                    {
-                        results.push_back(it->second);
-                    }
-                    return results;
-                }
+                Log::error("Attempted to find waypoint with no initialized providers");
+                return {};
             }
 
-            for (const auto &provider : providers)
+            if (identifier.empty())
             {
-                auto providerResults = provider->findWaypoint(identifier);
-                if (!providerResults.empty())
+                Log::error("Empty waypoint identifier provided");
+                return {};
+            }
+
+            try
+            {
+                if (useCache)
                 {
-                    if (useCache)
+                    auto range = cache.equal_range(identifier);
+                    if (range.first != range.second)
                     {
-                        for (const auto &waypoint : providerResults)
+                        std::vector<Waypoint> results;
+                        for (auto it = range.first; it != range.second; ++it)
                         {
-                            cache.insert({identifier, waypoint});
+                            results.push_back(it->second);
                         }
+                        return results;
                     }
-                    return providerResults; // Early return once we find results
                 }
+
+                for (const auto &provider : providers)
+                {
+                    if (!provider->isInitialized())
+                    {
+                        Log::warn("Skipping uninitialized provider: {}", provider->getName());
+                        continue;
+                    }
+
+                    auto providerResults = provider->findWaypoint(identifier);
+                    if (!providerResults.empty())
+                    {
+                        if (useCache)
+                        {
+                            for (const auto &waypoint : providerResults)
+                            {
+                                cache.insert({identifier, waypoint});
+                            }
+                        }
+                        return providerResults;
+                    }
+                }
+            }
+            catch (const std::exception &e)
+            {
+                Log::error("Error finding waypoint {}: {}", identifier, e.what());
             }
 
             return {};
         }
 
-        // Original findFirstWaypoint implementation
         std::optional<Waypoint> findFirstWaypoint(const std::string &identifier)
         {
-            auto waypoints = findWaypoint(identifier);
-            if (waypoints.empty())
+            if (!isInitialized())
             {
+                Log::error("Attempted to find first waypoint with no initialized providers");
                 return std::nullopt;
             }
-            return waypoints[0];
-        }
 
-        // Original findClosestWaypointTo implementation
-        std::optional<Waypoint> findClosestWaypointTo(const std::string &identifier, std::optional<Waypoint> reference = std::nullopt)
-        {
-            // If no reference provided, try to find one from the waypoint name
-            if (!reference.has_value())
+            if (identifier.empty())
             {
-                reference = findFirstWaypoint(identifier);
-                if (!reference.has_value())
+                Log::error("Empty waypoint identifier provided");
+                return std::nullopt;
+            }
+
+            try
+            {
+                auto waypoints = findWaypoint(identifier);
+                if (waypoints.empty())
                 {
                     return std::nullopt;
                 }
+                return waypoints[0];
             }
-
-            // Get all waypoints matching the identifier
-            auto waypoints = findWaypoint(identifier);
-            if (waypoints.empty())
+            catch (const std::exception &e)
             {
+                Log::error("Error finding first waypoint {}: {}", identifier, e.what());
+                return std::nullopt;
+            }
+        }
+
+        std::optional<Waypoint> findClosestWaypointTo(const std::string &identifier,
+                                                      std::optional<Waypoint> reference = std::nullopt)
+        {
+            if (!isInitialized())
+            {
+                Log::error("Attempted to find closest waypoint with no initialized providers");
                 return std::nullopt;
             }
 
-            // Sort waypoints by distance to reference
-            std::multimap<double, Waypoint> waypointsByDistance;
-            for (const auto &waypoint : waypoints)
+            if (identifier.empty())
             {
-                double distance = reference->getPosition().distanceTo(waypoint.getPosition());
-                waypointsByDistance.insert({distance, waypoint});
+                Log::error("Empty waypoint identifier provided for closest search");
+                return std::nullopt;
             }
 
-            if (!waypointsByDistance.empty())
+            try
             {
-                return waypointsByDistance.begin()->second; // Return closest waypoint
+                if (!reference.has_value())
+                {
+                    reference = findFirstWaypoint(identifier);
+                    if (!reference.has_value())
+                    {
+                        return std::nullopt;
+                    }
+                }
+
+                auto waypoints = findWaypoint(identifier);
+                if (waypoints.empty())
+                {
+                    return std::nullopt;
+                }
+
+                std::multimap<double, Waypoint> waypointsByDistance;
+                for (const auto &waypoint : waypoints)
+                {
+                    double distance = reference->getPosition().distanceTo(waypoint.getPosition());
+                    waypointsByDistance.insert({distance, waypoint});
+                }
+
+                if (!waypointsByDistance.empty())
+                {
+                    return waypointsByDistance.begin()->second;
+                }
+            }
+            catch (const std::exception &e)
+            {
+                Log::error("Error finding closest waypoint to {}: {}", identifier, e.what());
             }
 
             return std::nullopt;
@@ -316,26 +628,52 @@ namespace RouteParser
         std::optional<Waypoint> findClosestWaypoint(const std::string &identifier,
                                                     const erkir::spherical::Point &referencePoint)
         {
-            auto waypoints = findWaypoint(identifier);
-            if (waypoints.empty())
+            if (!isInitialized())
             {
+                Log::error("Attempted to find closest waypoint with no initialized providers");
                 return std::nullopt;
             }
 
-            // Find closest waypoint
-            auto closest = std::min_element(waypoints.begin(), waypoints.end(),
-                                            [&referencePoint](const Waypoint &a, const Waypoint &b)
-                                            {
-                                                return referencePoint.distanceTo(a.getPosition()) <
-                                                       referencePoint.distanceTo(b.getPosition());
-                                            });
+            if (identifier.empty())
+            {
+                Log::error("Empty waypoint identifier provided for closest search");
+                return std::nullopt;
+            }
 
-            return *closest;
+            try
+            {
+                auto waypoints = findWaypoint(identifier);
+                if (waypoints.empty())
+                {
+                    return std::nullopt;
+                }
+
+                auto closest = std::min_element(waypoints.begin(), waypoints.end(),
+                                                [&referencePoint](const Waypoint &a, const Waypoint &b)
+                                                {
+                                                    return referencePoint.distanceTo(a.getPosition()) <
+                                                           referencePoint.distanceTo(b.getPosition());
+                                                });
+
+                return *closest;
+            }
+            catch (const std::exception &e)
+            {
+                Log::error("Error finding closest waypoint {}: {}", identifier, e.what());
+                return std::nullopt;
+            }
         }
 
         void clearCache()
         {
-            cache.clear();
+            try
+            {
+                cache.clear();
+            }
+            catch (const std::exception &e)
+            {
+                Log::error("Error clearing cache: {}", e.what());
+            }
         }
     };
 }
