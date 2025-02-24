@@ -110,5 +110,11 @@
     "execution": "cpp",
     "print": "cpp",
     "string_view": "cpp"
-  }
+  },
+  "clangd.arguments": [
+    "--compile-commands-dir=${workspaceFolder}/build",
+    "--background-index",
+    "--clang-tidy"
+],
+"C_Cpp.intelliSenseEngine": "disabled"
 }

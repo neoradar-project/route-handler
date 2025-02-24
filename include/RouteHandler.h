@@ -25,6 +25,8 @@ public:
     }
 
     std::shared_ptr<ParserHandler> GetParser();
+    std::shared_ptr<NavdataObject> GetNavdata();
+
     void Bootstrap(ILogger logFunc, std::string navdataDbFile,
                    std::unordered_multimap<std::string, Procedure> procedures,
                    std::string airwaysDbFile)
