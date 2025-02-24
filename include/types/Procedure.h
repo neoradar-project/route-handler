@@ -1,6 +1,7 @@
 #pragma once
 #include "Waypoint.h"
 #include <string>
+#include <vector>
 
 namespace RouteParser {
 
