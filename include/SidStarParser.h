@@ -64,15 +64,14 @@ public:
         }
 
         if (matchingProcedures.empty()) {
-            return FoundProcedure { procedureToken, runway, std::nullopt,
-                { ParsingError { ParsingErrorType::UNKNOWN_PROCEDURE,
-                    fmt::format("No matching procedure found for {} at {}, "
-                                "returning unextracted procedure",
-                        procedureToken, icao),
-                    tokenIndex, procedureToken, ParsingErrorLevel::PARSE_ERROR } } };
+
+            // No procedure found for the given token
+            return FoundProcedure { std::nullopt, runway, std::nullopt };
         }
 
         if (runway) {
+
+            // There is a runway and some available procedures
             for (const auto& procedure : matchingProcedures) {
                 if (procedure.runway == runway) {
                     // Full, valid match for procedure + runway
@@ -80,7 +79,7 @@ public:
                 }
             }
 
-            // No matching runway found for procedure, return first matching procedure
+            // No matching runway found for procedure, return the runway with an error
             return FoundProcedure { procedureToken, runway, matchingProcedures[0],
                 { ParsingError { ParsingErrorType::PROCEDURE_RUNWAY_MISMATCH,
                     fmt::format("No matching runway {} found for procedure {} at {}, "
@@ -89,8 +88,13 @@ public:
                     tokenIndex, procedureToken, ParsingErrorLevel::PARSE_ERROR } } };
         }
 
-        // No runway found, return first matching procedure
-        return FoundProcedure { procedureToken, runway, matchingProcedures[0] };
+        if (!runway.has_value()) {
+            // No runway but somehow found a procedure, return the first matching procedure
+            return FoundProcedure { procedureToken, runway, matchingProcedures[0] };
+        }
+
+        // No match found
+        return FoundProcedure { {}, runway, {} };
     }
 };
 
