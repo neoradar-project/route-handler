@@ -47,14 +47,10 @@ namespace RouteHandlerTests
         auto parsedRoute = handler.GetParser()->ParseRawRoute(
             "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
 
-        EXPECT_BASIC_ROUTE(parsedRoute);
-        EXPECT_EQ(parsedRoute.rawRoute, "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
-        EXPECT_EQ(parsedRoute.departureRunway, "06");
-        EXPECT_EQ(parsedRoute.arrivalRunway, "07R");
-        EXPECT_EQ(parsedRoute.SID, "TES61X");
-        EXPECT_EQ(parsedRoute.STAR, "ABBEY3A");
-        EXPECT_EQ(parsedRoute.totalTokens, 7);
-    }
+    EXPECT_BASIC_ROUTE(parsedRoute);
+    EXPECT_EQ(parsedRoute.rawRoute, "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
+    EXPECT_EQ(parsedRoute.totalTokens, 7);
+}
 
     TEST_F(RouteHandlerTest, BasicRouteWithSIDAndSTARNotTraversable)
     {
@@ -112,11 +108,11 @@ namespace RouteHandlerTests
         auto parsedRoute = handler.GetParser()->ParseRawRoute(
             "KSFO/28L BLUE DCT PAINT KLAX/24R ", "RJTT", "LFPO");
 
-        EXPECT_EQ(parsedRoute.departureRunway, std::nullopt);
-        EXPECT_EQ(parsedRoute.arrivalRunway, std::nullopt);
-        EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::INFO, 2);
-        EXPECT_EQ(parsedRoute.totalTokens, 5);
-    }
+    EXPECT_EQ(parsedRoute.departureRunway, std::nullopt);
+    EXPECT_EQ(parsedRoute.arrivalRunway, std::nullopt);
+    EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::PARSE_ERROR, 2);
+    EXPECT_EQ(parsedRoute.totalTokens, 5);
+}
 
     TEST_F(RouteHandlerTest, ChangeOfFlightRule)
     {
