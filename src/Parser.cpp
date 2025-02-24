@@ -110,6 +110,10 @@ bool ParserHandler::ParseWaypoints(ParsedRoute &parsedRoute, int index, std::str
             waypoint.value(), currentFlightRule, plannedAltAndSpd);
 
         // If we already have waypoints, create a direct segment
+        if (parsedRoute.waypoints.empty()) {
+            // Handle error or return false
+            return false;
+        }
         if (!parsedRoute.waypoints.empty())
         {
             AddDirectSegment(parsedRoute, parsedRoute.waypoints.back(), newWaypoint);
