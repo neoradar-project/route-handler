@@ -33,29 +33,30 @@ public:
   static FoundProcedure FindProcedure(const std::string &token,
                                       const std::string &icao,
                                       ProcedureType type, int tokenIndex) {
-    std::optional<std::string> runway = FindRunway(token);
-    const std::vector<std::string> parts = absl::StrSplit(token, '/');
-    if (parts.empty() || parts.size() < 2) {
-
+    if (token.empty() || icao.empty()) {
       return FoundProcedure{
           {},
-          runway,
           {},
-          {ParsingError{
-              ParsingErrorType::INVALID_DATA,
-              fmt::format("Token split failed despite finding runway: {} {}",
-                          token, icao),
-              tokenIndex, token, ParsingErrorLevel::PARSE_ERROR}}};
+          {},
+          {ParsingError{ParsingErrorType::INVALID_DATA, "Empty token or ICAO",
+                        tokenIndex, token}}};
     }
 
-    std::string procedureToken =
-        runway ? parts[0] : token; // If we have a runway, we know that the
-                                   // string is split in at least 2 parts
+    std::optional<std::string> runway = FindRunway(token);
+    const std::vector<std::string> parts = absl::StrSplit(token, '/');
 
+    // Handle single token case properly
+    std::string procedureToken = token;
+    if (!parts.empty() && parts.size() >= 2) {
+      procedureToken = parts[0];
+    }
+
+    // Handle direct ICAO+runway case
     if (runway && procedureToken.length() == 4 && procedureToken == icao) {
       return FoundProcedure{procedureToken, runway, std::nullopt};
     }
 
+    // Safe procedures access
     const auto &procedures = NavdataObject::GetProcedures();
     std::vector<RouteParser::Procedure> matchingProcedures;
 
