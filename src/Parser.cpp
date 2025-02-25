@@ -430,7 +430,7 @@ bool ParserHandler::ParseAirway(ParsedRoute &parsedRoute, int index,
         Utils::InsertParsingErrorIfNotDuplicate(parsedRoute.errors, modifiedError);
     }
 
-    if (!airwaySegments.segments.empty())
+    if (!airwaySegments.segments.empty() && !parsedRoute.waypoints.empty())
     {
         // Convert the last waypoint in our route to RouteWaypoint
         RouteWaypoint fromWaypoint = parsedRoute.waypoints.back();
@@ -459,7 +459,7 @@ bool ParserHandler::ParseAirway(ParsedRoute &parsedRoute, int index,
         return true;
     }
 
-    if (nextWaypoint)
+    if (nextWaypoint && !parsedRoute.waypoints.empty())
     {
         // Handle direct routing case
         RouteWaypoint fromWaypoint = parsedRoute.waypoints.back();
