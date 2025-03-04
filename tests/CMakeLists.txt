@@ -19,7 +19,7 @@ if(TEST_USE_REALDATA)
     )
 endif()
 
-if(DEFINED VCPKG_TARGET_TRIPLET)
+if(DEFINED VCPKG_TARGET_TRIPLET AND NOT "${VCPKG_TARGET_TRIPLET}" STREQUAL "")
     find_package(GTest CONFIG REQUIRED)
     set(GTEST_LIBS GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main)
 else()

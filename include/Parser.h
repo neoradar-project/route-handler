@@ -84,6 +84,10 @@ namespace RouteParser
 
     void AddDirectSegment(ParsedRoute &parsedRoute,
                           const RouteWaypoint &fromWaypoint, const RouteWaypoint &toWaypoint);
+
+    void AddConnectionSegments(ParsedRoute& parsedRoute,
+        const std::string& origin,
+        const std::string& destination);
   };
 
 } // namespace RouteParser

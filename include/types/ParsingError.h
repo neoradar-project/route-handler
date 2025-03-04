@@ -11,6 +11,7 @@ enum ParsingErrorType {
     PROCEDURE_RUNWAY_MISMATCH,
     UNKNOWN_PROCEDURE,
     UNKNOWN_WAYPOINT,
+	NO_PROCEDURE_FOUND,
     INVALID_RUNWAY,
     INVALID_DATA,
 
@@ -18,8 +19,8 @@ enum ParsingErrorType {
     UNKNOWN_AIRWAY,
     INVALID_AIRWAY_DIRECTION,
     AIRWAY_FIX_NOT_FOUND,
-    INSUFFICIENT_FLIGHT_LEVEL, // Add this new error type
-    MULTIPLE_AIRWAYS_FOUND // Add this new error type
+    INSUFFICIENT_FLIGHT_LEVEL, 
+    MULTIPLE_AIRWAYS_FOUND 
 };
 
 struct ParsingError {

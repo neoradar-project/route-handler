@@ -122,6 +122,72 @@ bool ParserHandler::ParseWaypoints(ParsedRoute &parsedRoute, int index, std::str
     return false;
 }
 
+void ParserHandler::AddConnectionSegments(ParsedRoute& parsedRoute,
+    const std::string& origin,
+    const std::string& destination)
+{
+    bool needsOriginConnection = !parsedRoute.SID.has_value();
+    bool needsDestConnection = !parsedRoute.STAR.has_value();
+
+    if (!needsOriginConnection && !needsDestConnection) {
+        return;
+    }
+
+    if (needsOriginConnection && !parsedRoute.waypoints.empty()) {
+        auto originWaypoint = NavdataObject::FindWaypointByType(origin, AIRPORT);
+
+        if (originWaypoint) {
+            RouteWaypoint originRouteWaypoint = Utils::WaypointToRouteWaypoint(
+                originWaypoint.value(),
+                parsedRoute.waypoints.front().GetFlightRule());
+
+            ParsedRouteSegment segment{
+                originRouteWaypoint,
+                parsedRoute.waypoints.front(),
+                "DCT",
+                -1
+            };
+
+            parsedRoute.segments.insert(parsedRoute.segments.begin(), segment);
+
+            parsedRoute.errors.push_back({
+                NO_PROCEDURE_FOUND,
+                "Added direct connection from origin to first waypoint as no procedure found",
+                0,
+                origin,
+                INFO
+                });
+        }
+    }
+
+    if (needsDestConnection && !parsedRoute.waypoints.empty()) {
+        auto destWaypoint = NavdataObject::FindWaypointByType(destination, AIRPORT);
+
+        if (destWaypoint) {
+            RouteWaypoint destRouteWaypoint = Utils::WaypointToRouteWaypoint(
+                destWaypoint.value(),
+                parsedRoute.waypoints.back().GetFlightRule());
+
+            ParsedRouteSegment segment{
+                parsedRoute.waypoints.back(),
+                destRouteWaypoint,
+                "DCT",
+                -1
+            };
+
+            parsedRoute.segments.push_back(segment);
+
+            parsedRoute.errors.push_back({
+                NO_PROCEDURE_FOUND,
+                "Added direct connection from last waypoint to destination as no procedure found",
+                parsedRoute.totalTokens - 1,
+                destination,
+                INFO
+                });
+        }
+    }
+}
+
 std::optional<RouteWaypoint::PlannedAltitudeAndSpeed>
 ParserHandler::ParsePlannedAltitudeAndSpeed(int index, std::string rightToken)
 {
@@ -249,6 +315,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
             {
                 continue;
             }
+
         }
 
         // Check if token is a known airway
@@ -302,7 +369,9 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
             parsedRoute.errors.push_back(
                 ParsingError{UNKNOWN_WAYPOINT, "Unknown waypoint", i, token});
         }
+
     }
+    this->AddConnectionSegments(parsedRoute, origin, destination);
 
     return parsedRoute;
 }
