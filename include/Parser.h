@@ -22,13 +22,6 @@ namespace RouteParser
     std::shared_ptr<NavdataObject> navdata;
 
     /**
-     * @brief Cleans up the raw route string.
-     * @param route The raw route string to be cleaned.
-     * @return A cleaned-up route string.
-     */
-    std::string CleanupRawRoute(std::string route);
-
-    /**
      * @brief Parses the first and last part of the route.
      * @param parsedRoute The parsed route object.
      * @param index The index of the current token.

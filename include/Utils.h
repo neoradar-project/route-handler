@@ -19,8 +19,8 @@ namespace RouteParser
   {
     static std::string CleanupRawRoute(std::string route)
     {
-      // First replace colons and commas with spaces
-      route = absl::StrReplaceAll(route, {{":", " "}, {",", " "}});
+      // First replace colons and commas with spaces and remove the + sign when amended
+      route = absl::StrReplaceAll(route, {{":", " "}, {",", " "}, {"+", ""}});
 
       // Strip leading/trailing whitespace
       route = absl::StripAsciiWhitespace(route);
