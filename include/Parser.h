@@ -5,6 +5,7 @@
 #include <string>
 #include <memory>
 #include "Navdata.h"
+#include "AirportConfigurator.h"
 
 namespace RouteParser
 {
@@ -16,10 +17,15 @@ namespace RouteParser
   class ParserHandler
   {
   public:
-    ParserHandler(std::shared_ptr<NavdataObject> navdata) : navdata(navdata) {}
+    ParserHandler(std::shared_ptr<NavdataObject> navdata, std::shared_ptr<AirportConfigurator> airportConfigurator)
+          : navdata(navdata)
+          , airportConfigurator(airportConfigurator)
+      {
+      }
 
   private:
     std::shared_ptr<NavdataObject> navdata;
+    std::shared_ptr<AirportConfigurator> airportConfigurator;
 
     /**
      * @brief Parses the first and last part of the route.
