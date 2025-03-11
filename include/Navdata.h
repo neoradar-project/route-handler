@@ -43,7 +43,8 @@ namespace RouteParser
 
     static void LoadAirports(std::string airportsFilePath);
 
-    static void LoadIntersectionWaypoints(std::string isecFilePath);
+    static void LoadNseWaypoints(
+        const std::vector<Waypoint>& waypoints, const std::string& providerName);
 
     static const std::unordered_map<std::string, Waypoint> GetWaypoints()
     {
@@ -133,7 +134,6 @@ namespace RouteParser
     inline static std::mutex _mutex;
     inline static std::mutex waypointsMutex;
 
-    static void BatchInsertWaypoints(std::vector<std::pair<std::string, Waypoint>> &&batch);
 
     inline static std::unordered_map<std::string, Waypoint> waypoints = {};
     inline static std::unordered_multimap<std::string, Procedure> procedures = {};

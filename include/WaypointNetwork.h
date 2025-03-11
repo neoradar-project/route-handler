@@ -24,6 +24,98 @@ namespace RouteParser
         virtual std::string getName() const = 0;
     };
 
+    class NseWaypointProvider : public WaypointProvider {
+    private:
+        std::unordered_map<std::string, std::vector<Waypoint>> waypointsByIdentifier;
+        std::string name;
+        bool initialized { false };
+
+    public:
+        NseWaypointProvider(
+            const std::vector<Waypoint>& waypoints, const std::string& providerName)
+            : name(providerName)
+        {
+
+            // Organize waypoints by identifier for quick lookup
+            for (const auto& waypoint : waypoints) {
+                waypointsByIdentifier[waypoint.getIdentifier()].push_back(waypoint);
+            }
+
+            Log::info("[{}] Constructed with {} unique waypoint identifiers", name,
+                waypointsByIdentifier.size());
+        }
+
+        std::vector<Waypoint> findWaypoint(const std::string& identifier) override
+        {
+            if (!isInitialized()) {
+                Log::error(
+                    "[{}] Attempted to find waypoint with uninitialized provider", name);
+                return {};
+            }
+
+            if (identifier.empty()) {
+                Log::error("[{}] Empty waypoint identifier provided", name);
+                return {};
+            }
+
+            auto it = waypointsByIdentifier.find(identifier);
+            if (it != waypointsByIdentifier.end()) {
+                return it->second;
+            }
+
+            return {};
+        }
+
+        std::optional<Waypoint> findClosestWaypoint(const std::string& identifier,
+            const erkir::spherical::Point& reference) override
+        {
+
+            if (!isInitialized()) {
+                Log::error(
+                    "[{}] Attempted to find closest waypoint with uninitialized provider",
+                    name);
+                return std::nullopt;
+            }
+
+            if (identifier.empty()) {
+                Log::error(
+                    "[{}] Empty waypoint identifier provided for closest search", name);
+                return std::nullopt;
+            }
+
+            auto waypoints = findWaypoint(identifier);
+            if (waypoints.empty()) {
+                return std::nullopt;
+            }
+
+            double minDistance = std::numeric_limits<double>::max();
+            std::optional<Waypoint> closest;
+
+            for (const auto& waypoint : waypoints) {
+                double distance = reference.distanceTo(waypoint.getPosition());
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closest = waypoint;
+                }
+            }
+
+            return closest;
+        }
+
+        bool initialize() override
+        {
+            Log::info("[{}] Initializing NSE waypoint provider with {} unique waypoint "
+                      "identifiers",
+                name, waypointsByIdentifier.size());
+            initialized = true;
+            return true;
+        }
+
+        bool isInitialized() const override { return initialized; }
+
+        std::string getName() const override { return name; }
+    };
+
     class BaseWaypointProvider : public WaypointProvider
     {
     protected:
