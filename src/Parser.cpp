@@ -16,23 +16,22 @@
 
 using namespace RouteParser;
 
-bool ParserHandler::ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
-                                          std::string token, std::string anchorIcao, bool strict, FlightRule currentFlightRule)
+bool ParserHandler::ParseFirstAndLastPart(ParsedRoute& parsedRoute, int index,
+    std::string token, std::string anchorIcao, bool strict, FlightRule currentFlightRule)
 {
-
     auto res = SidStarParser::FindProcedure(
         token, anchorIcao, index == 0 ? PROCEDURE_SID : PROCEDURE_STAR, index);
 
     if (res.errors.size() > 0)
     {
-        for (const auto &error : res.errors)
+        for (const auto& error : res.errors)
         {
             // This function is called twice, once in strict mode and once in non
             // strict mode We don't want to add the same error twice
             if (strict && error.type == UNKNOWN_PROCEDURE)
             {
                 continue; // In strict mode, since we only accept procedures in dataset,
-                          // this error can be ignored
+                // this error can be ignored
             }
             Utils::InsertParsingErrorIfNotDuplicate(parsedRoute.errors, error);
         }
@@ -59,20 +58,32 @@ bool ParserHandler::ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
             parsedRoute.arrivalRunway = res.runway;
         }
         return true; // ICAO matching anchor (origin or destination) + runway,
-                     // always valid
+        // always valid
     }
 
     if (index == 0)
     {
         parsedRoute.departureRunway = res.runway;
-        parsedRoute.SID = strict && res.extractedProcedure ? res.extractedProcedure->name
-                                                           : res.procedure;
+
+        // Store the procedure if available
+        if (res.extractedProcedure) {
+            parsedRoute.SID = res.extractedProcedure;
+
+            const auto& procedure = res.extractedProcedure.value();
+            std::cout << "SID: " << procedure.name << " ICAO: " << procedure.icao << " Runway: " << procedure.runway << std::endl;
+            for (const auto& waypoints : procedure.waypoints) {
+                std::cout << "Waypoint: " << waypoints.getIdentifier() << std::endl;
+            }
+        }
     }
     else
     {
         parsedRoute.arrivalRunway = res.runway;
-        parsedRoute.STAR = strict && res.extractedProcedure ? res.extractedProcedure->name
-                                                            : res.procedure;
+
+        // Store the procedure if available
+        if (res.extractedProcedure) {
+            parsedRoute.STAR = res.extractedProcedure;
+        }
     }
 
     if (res.extractedProcedure)
@@ -83,6 +94,290 @@ bool ParserHandler::ParseFirstAndLastPart(ParsedRoute &parsedRoute, int index,
     }
 
     return !strict && (res.procedure || res.runway);
+}
+
+void RouteParser::ParserHandler::GenerateExplicitSegments(ParsedRoute& parsedRoute,
+    const std::string& origin,
+    const std::string& destination) {
+    // Always clear previous explicit segments and waypoints
+    parsedRoute.explicitSegments.clear();
+    parsedRoute.explicitWaypoints.clear();
+
+    FlightRule flightRule = parsedRoute.waypoints.empty() ? IFR : parsedRoute.waypoints.front().GetFlightRule();
+
+    // Get origin and destination airport waypoints
+    auto originWaypoint = NavdataObject::FindWaypointByType(origin, AIRPORT);
+    auto destWaypoint = NavdataObject::FindWaypointByType(destination, AIRPORT);
+
+    if (!originWaypoint || !destWaypoint) {
+        // If we can't find the airports, just copy the original route
+        parsedRoute.explicitWaypoints = parsedRoute.waypoints;
+        parsedRoute.explicitSegments = parsedRoute.segments;
+        return;
+    }
+
+    // Create RouteWaypoints for airports
+    RouteWaypoint originRouteWaypoint = Utils::WaypointToRouteWaypoint(
+        originWaypoint.value(), flightRule);
+    RouteWaypoint destRouteWaypoint = Utils::WaypointToRouteWaypoint(
+        destWaypoint.value(), flightRule);
+
+    // 1. ALWAYS start with the origin airport
+    parsedRoute.explicitWaypoints.push_back(originRouteWaypoint);
+
+    // 2. DEPARTURE: Add SID if available or direct connection to first waypoint
+    std::optional<Procedure> sidProcedure = parsedRoute.SID.has_value() ?
+        parsedRoute.SID :
+        parsedRoute.suggestedSID;
+
+    if (sidProcedure.has_value() && !sidProcedure->waypoints.empty()) {
+        // Create vector of RouteWaypoints from SID
+        std::vector<RouteWaypoint> sidWaypoints;
+        for (const auto& waypoint : sidProcedure->waypoints) {
+            sidWaypoints.push_back(Utils::WaypointToRouteWaypoint(waypoint, flightRule));
+        }
+
+        // Connect origin airport to first SID waypoint
+        ParsedRouteSegment firstSegment{
+            originRouteWaypoint,
+            sidWaypoints.front(),
+            "DCT",
+            -1
+        };
+        parsedRoute.explicitSegments.push_back(firstSegment);
+
+        // Find last SID waypoint that matches a route waypoint
+        std::optional<size_t> connectionPointIndex;
+        std::string connectionWaypointId;
+
+        if (!parsedRoute.waypoints.empty()) {
+            for (size_t i = sidWaypoints.size(); i-- > 0;) {
+                const auto& sidWaypoint = sidWaypoints[i];
+
+                for (size_t j = 0; j < parsedRoute.waypoints.size(); ++j) {
+                    if (parsedRoute.waypoints[j].getIdentifier() == sidWaypoint.getIdentifier()) {
+                        connectionPointIndex = i;
+                        connectionWaypointId = sidWaypoint.getIdentifier();
+                        parsedRoute.sidConnectionWaypoint = connectionWaypointId;
+                        break;
+                    }
+                }
+
+                if (connectionPointIndex.has_value()) {
+                    break;
+                }
+            }
+        }
+
+        // Add SID waypoints to explicit waypoints (excluding the first one we already connected to)
+        for (size_t i = 0; i < sidWaypoints.size(); ++i) {
+            // Stop if we've reached the connection point
+            if (connectionPointIndex.has_value() && i > connectionPointIndex.value()) {
+                break;
+            }
+
+            // Add the waypoint to explicit waypoints
+            parsedRoute.explicitWaypoints.push_back(sidWaypoints[i]);
+
+            // Add segments between consecutive waypoints (starting from index 1)
+            if (i > 0) {
+                ParsedRouteSegment segment{
+                    sidWaypoints[i - 1],
+                    sidWaypoints[i],
+                    "DCT",
+                    -1
+                };
+                parsedRoute.explicitSegments.push_back(segment);
+            }
+        }
+
+        // Now add the route waypoints starting after the connection point
+        if (!parsedRoute.waypoints.empty()) {
+            size_t routeStartIndex = 0;
+
+            if (connectionPointIndex.has_value()) {
+                // Find the index of the connection point in the route
+                for (size_t i = 0; i < parsedRoute.waypoints.size(); ++i) {
+                    if (parsedRoute.waypoints[i].getIdentifier() == connectionWaypointId) {
+                        routeStartIndex = i + 1; // Start after the connection point
+                        break;
+                    }
+                }
+            }
+            else {
+                // No connection, add segment from last SID waypoint to first route waypoint
+                ParsedRouteSegment segment{
+                    sidWaypoints.back(),
+                    parsedRoute.waypoints.front(),
+                    "DCT",
+                    -1
+                };
+                parsedRoute.explicitSegments.push_back(segment);
+            }
+
+            // Add remaining route waypoints
+            for (size_t i = routeStartIndex; i < parsedRoute.waypoints.size(); ++i) {
+                parsedRoute.explicitWaypoints.push_back(parsedRoute.waypoints[i]);
+
+                if (i > routeStartIndex) {
+                    // Add segments between consecutive route waypoints
+                    ParsedRouteSegment segment{
+                        parsedRoute.waypoints[i - 1],
+                        parsedRoute.waypoints[i],
+                        (i - 1 < parsedRoute.segments.size()) ? parsedRoute.segments[i - 1].airway : "DCT",
+                        (i - 1 < parsedRoute.segments.size()) ? parsedRoute.segments[i - 1].minimumLevel : -1
+                    };
+                    parsedRoute.explicitSegments.push_back(segment);
+                }
+            }
+        }
+    }
+    else if (!parsedRoute.waypoints.empty()) {
+        // No SID procedure, add direct connection from origin airport to first waypoint
+        ParsedRouteSegment segment{
+            originRouteWaypoint,
+            parsedRoute.waypoints.front(),
+            "DCT",
+            -1
+        };
+        parsedRoute.explicitSegments.push_back(segment);
+
+        // Add all route waypoints and segments
+        for (size_t i = 0; i < parsedRoute.waypoints.size(); ++i) {
+            parsedRoute.explicitWaypoints.push_back(parsedRoute.waypoints[i]);
+
+            if (i > 0) {
+                // Add segments between consecutive route waypoints
+                ParsedRouteSegment segment{
+                    parsedRoute.waypoints[i - 1],
+                    parsedRoute.waypoints[i],
+                    (i - 1 < parsedRoute.segments.size()) ? parsedRoute.segments[i - 1].airway : "DCT",
+                    (i - 1 < parsedRoute.segments.size()) ? parsedRoute.segments[i - 1].minimumLevel : -1
+                };
+                parsedRoute.explicitSegments.push_back(segment);
+            }
+        }
+    }
+
+    // 3. ARRIVAL: Add STAR if available or direct connection to destination
+    std::optional<Procedure> starProcedure = parsedRoute.STAR.has_value() ?
+        parsedRoute.STAR :
+        parsedRoute.suggestedSTAR;
+
+    if (starProcedure.has_value() && !starProcedure->waypoints.empty() && !parsedRoute.explicitWaypoints.empty()) {
+        // Create vector of RouteWaypoints from STAR
+        std::vector<RouteWaypoint> starWaypoints;
+        for (const auto& waypoint : starProcedure->waypoints) {
+            starWaypoints.push_back(Utils::WaypointToRouteWaypoint(waypoint, flightRule));
+        }
+
+        // Find first STAR waypoint that matches a route waypoint
+        std::optional<size_t> connectionPointIndex;
+        std::string connectionWaypointId;
+
+        // Skip airport waypoint when checking for connection
+        size_t startIndex = parsedRoute.explicitWaypoints[0].getIdentifier() == origin ? 1 : 0;
+
+        for (size_t i = 0; i < starWaypoints.size(); ++i) {
+            const auto& starWaypoint = starWaypoints[i];
+
+            for (size_t j = startIndex; j < parsedRoute.explicitWaypoints.size(); ++j) {
+                if (parsedRoute.explicitWaypoints[j].getIdentifier() == starWaypoint.getIdentifier()) {
+                    connectionPointIndex = i;
+                    connectionWaypointId = starWaypoint.getIdentifier();
+                    parsedRoute.starConnectionWaypoint = connectionWaypointId;
+                    break;
+                }
+            }
+
+            if (connectionPointIndex.has_value()) {
+                break;
+            }
+        }
+
+        // If we found a connection point, add STAR waypoints after it
+        if (connectionPointIndex.has_value()) {
+            // Find the connection point in our explicit waypoints
+            size_t explicitConnectionIndex = 0;
+            for (size_t i = 0; i < parsedRoute.explicitWaypoints.size(); ++i) {
+                if (parsedRoute.explicitWaypoints[i].getIdentifier() == connectionWaypointId) {
+                    explicitConnectionIndex = i;
+                    break;
+                }
+            }
+
+            // Remove duplicates after the connection point
+            if (explicitConnectionIndex < parsedRoute.explicitWaypoints.size() - 1) {
+                parsedRoute.explicitWaypoints.erase(
+                    parsedRoute.explicitWaypoints.begin() + explicitConnectionIndex + 1,
+                    parsedRoute.explicitWaypoints.end()
+                );
+            }
+
+            // Add all STAR waypoints after the connection point
+            for (size_t i = connectionPointIndex.value() + 1; i < starWaypoints.size(); ++i) {
+                RouteWaypoint prevWaypoint = (i == connectionPointIndex.value() + 1) ?
+                    parsedRoute.explicitWaypoints[explicitConnectionIndex] :
+                    starWaypoints[i - 1];
+
+                ParsedRouteSegment segment{
+                    prevWaypoint,
+                    starWaypoints[i],
+                    "DCT",
+                    -1
+                };
+
+                parsedRoute.explicitWaypoints.push_back(starWaypoints[i]);
+                parsedRoute.explicitSegments.push_back(segment);
+            }
+        }
+        else {
+            // No connection point found, add a segment from last explicit waypoint to first STAR waypoint
+            ParsedRouteSegment segment{
+                parsedRoute.explicitWaypoints.back(),
+                starWaypoints.front(),
+                "DCT",
+                -1
+            };
+            parsedRoute.explicitSegments.push_back(segment);
+
+            // Add all STAR waypoints
+            for (size_t i = 0; i < starWaypoints.size(); ++i) {
+                parsedRoute.explicitWaypoints.push_back(starWaypoints[i]);
+
+                if (i > 0) {
+                    ParsedRouteSegment segment{
+                        starWaypoints[i - 1],
+                        starWaypoints[i],
+                        "DCT",
+                        -1
+                    };
+                    parsedRoute.explicitSegments.push_back(segment);
+                }
+            }
+        }
+    }
+
+    // 4. ALWAYS end with the destination airport
+    // Check if the last waypoint is already the destination
+    if (parsedRoute.explicitWaypoints.empty() ||
+        parsedRoute.explicitWaypoints.back().getIdentifier() != destination) {
+
+        // Add segment from last waypoint (or origin if no waypoints) to destination
+        RouteWaypoint lastWaypoint = parsedRoute.explicitWaypoints.empty() ?
+            originRouteWaypoint : parsedRoute.explicitWaypoints.back();
+
+        ParsedRouteSegment finalSegment{
+            lastWaypoint,
+            destRouteWaypoint,
+            "DCT",
+            -1
+        };
+        parsedRoute.explicitSegments.push_back(finalSegment);
+        parsedRoute.explicitWaypoints.push_back(destRouteWaypoint);
+    }
+
+
 }
 
 bool ParserHandler::ParseWaypoints(ParsedRoute &parsedRoute, int index, std::string token,
@@ -259,7 +554,7 @@ ParserHandler::ParsePlannedAltitudeAndSpeed(int index, std::string rightToken)
 }
 
 ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
-                                         std::string destination, FlightRule filedFlightRule)
+    std::string destination, FlightRule filedFlightRule)
 {
     auto parsedRoute = ParsedRoute();
     parsedRoute.rawRoute = route;
@@ -269,7 +564,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
     if (route.empty())
     {
         parsedRoute.errors.push_back(
-            {ROUTE_EMPTY, "Route is empty", 0, "", PARSE_ERROR});
+            { ROUTE_EMPTY, "Route is empty", 0, "", PARSE_ERROR });
         return parsedRoute;
     }
 
@@ -311,7 +606,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
         if ((i == 0 || i == routeParts.size() - 1) && token.find("/") != std::string::npos)
         {
             if (this->ParseFirstAndLastPart(parsedRoute, i, token,
-                                            i == 0 ? origin : destination, true, currentFlightRule))
+                i == 0 ? origin : destination, true, currentFlightRule))
             {
                 continue;
             }
@@ -323,12 +618,12 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
 
         if (isAirway && i > 0 && i < routeParts.size() - 1 && previousWaypoint.has_value())
         {
-            const auto &nextToken = routeParts[i + 1];
+            const auto& nextToken = routeParts[i + 1];
             // Verify next token isn't a SID/STAR (no '/')
             if (token.find('/') == std::string::npos && nextToken.find('/') == std::string::npos)
             {
                 if (this->ParseAirway(parsedRoute, i, token, previousWaypoint, nextToken,
-                                      currentFlightRule))
+                    currentFlightRule))
                 {
 
                     previousWaypoint = NavdataObject::FindClosestWaypointTo(
@@ -341,13 +636,13 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
 
         // Only try parsing as waypoint if it's not an airway
         if (!isAirway && this->ParseWaypoints(
-                             parsedRoute, i, token, previousWaypoint, currentFlightRule))
+            parsedRoute, i, token, previousWaypoint, currentFlightRule))
         {
             continue;
         }
 
         if (!isAirway && this->ParseLatLon(
-                             parsedRoute, i, token, previousWaypoint, currentFlightRule))
+            parsedRoute, i, token, previousWaypoint, currentFlightRule))
         {
             continue;
         }
@@ -356,7 +651,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
         if (i == 0 || i == routeParts.size() - 1)
         {
             if (this->ParseFirstAndLastPart(parsedRoute, i, token,
-                                            i == 0 ? origin : destination, false, currentFlightRule))
+                i == 0 ? origin : destination, false, currentFlightRule))
             {
                 continue;
             }
@@ -367,11 +662,18 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
         if (!isAirway)
         {
             parsedRoute.errors.push_back(
-                ParsingError{UNKNOWN_WAYPOINT, "Unknown waypoint", i, token});
+                ParsingError{ UNKNOWN_WAYPOINT, "Unknown waypoint", i, token });
         }
-
     }
-    this->AddConnectionSegments(parsedRoute, origin, destination);
+
+    // Add procedure suggestions
+    SidStarParser::AddSugggestedProcedures(parsedRoute, origin, destination, airportConfigurator);
+
+    // Add direct connection from origin/to destination if needed
+    AddConnectionSegments(parsedRoute, origin, destination);
+
+    // Generate explicit segments with SID/STAR and airport connections
+    GenerateExplicitSegments(parsedRoute, origin, destination);
 
     return parsedRoute;
 }
