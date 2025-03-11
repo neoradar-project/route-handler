@@ -68,12 +68,6 @@ bool ParserHandler::ParseFirstAndLastPart(ParsedRoute& parsedRoute, int index,
         // Store the procedure if available
         if (res.extractedProcedure) {
             parsedRoute.SID = res.extractedProcedure;
-
-            const auto& procedure = res.extractedProcedure.value();
-            std::cout << "SID: " << procedure.name << " ICAO: " << procedure.icao << " Runway: " << procedure.runway << std::endl;
-            for (const auto& waypoints : procedure.waypoints) {
-                std::cout << "Waypoint: " << waypoints.getIdentifier() << std::endl;
-            }
         }
     }
     else
