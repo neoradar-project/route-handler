@@ -57,6 +57,13 @@ public:
         m_flightRule = flightRule; // Changed to m_ prefix
     }
 
+    RouteWaypoint(const Waypoint& other, FlightRule flightRule = IFR)
+        : Waypoint(other)
+        , m_plannedPosition(std::nullopt)
+        , m_flightRule(flightRule)
+    {
+    }
+
     std::optional<PlannedAltitudeAndSpeed> GetPlannedPosition() const
     {
         return m_plannedPosition;
