@@ -63,8 +63,9 @@ inline void from_json(const nlohmann::json& j, RouteWaypoint& wp)
     if (j.at("plannedPosition").is_null()) {
         wp.m_plannedPosition = std::nullopt;
     } else {
-        wp.m_plannedPosition
-            = j.at("plannedPosition").get<RouteWaypoint::PlannedAltitudeAndSpeed>();
+        RouteWaypoint::PlannedAltitudeAndSpeed pos;
+        j.at("plannedPosition").get_to(pos);
+        wp.m_plannedPosition = pos;
     }
     j.at("flightRule").get_to(wp.m_flightRule);
 }
