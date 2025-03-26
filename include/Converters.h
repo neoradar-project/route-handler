@@ -132,4 +132,4 @@ void extended_from_json(const char* key, const nlohmann::json& j, T& value)
     friend void from_json(const nlohmann::json& nlohmann_json_j, Type& nlohmann_json_t)  \
     {                                                                                    \
         NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(EXTEND_JSON_FROM, __VA_ARGS__))         \
-    }
+    }                                                                                    \
