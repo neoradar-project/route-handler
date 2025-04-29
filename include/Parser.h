@@ -7,6 +7,7 @@
 #include <memory>
 #include "Navdata.h"
 #include "AirportConfigurator.h"
+#include <regex>
 
 namespace RouteParser
 {
@@ -76,6 +77,12 @@ namespace RouteParser
          * @param destination The destination of the route.
          * @return A ParsedRoute object representing the parsed route.
          */
+
+        static const std::regex sidStarPattern;
+        static const std::regex altitudeSpeedPattern;
+
+        void CleanupUnrecognizedPatterns(ParsedRoute& parsedRoute, const std::string& origin, const std::string& destination);
+
         bool ParseAirway(ParsedRoute& parsedRoute, int index, std::string token,
             std::optional<Waypoint>& previousWaypoint,
             std::optional<std::string> nextToken,

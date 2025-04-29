@@ -219,4 +219,78 @@ namespace RouteHandlerTests
         EXPECT_EQ(parsedRoute.waypoints[5].GetPlannedPosition(), std::nullopt);
     }
 
+    TEST_F(RouteHandlerTest, RouteWithUnrecognizedProcedureRemoval)
+{
+    auto parsedRoute = handler.GetParser()->ParseRawRoute(
+        "TES61X/06 TES60X TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
+
+    // No errors should be generated for the removed token
+    EXPECT_EQ(0, std::count_if(parsedRoute.errors.begin(), parsedRoute.errors.end(),
+        [](const ParsingError& error) { return error.token == "TES60X"; }));
+    
+    // TES60X should be removed as an unrecognized procedure
+    EXPECT_EQ(parsedRoute.rawRoute, "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
+    EXPECT_EQ(parsedRoute.totalTokens, 7);
+}
+
+TEST_F(RouteHandlerTest, RouteWithAltitudeSpeedBeforeFirstWaypoint)
+{
+    auto parsedRoute = handler.GetParser()->ParseRawRoute(
+        "TES61X/06 N0378F240 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
+
+    // No errors should be generated for the removed token
+    EXPECT_EQ(0, std::count_if(parsedRoute.errors.begin(), parsedRoute.errors.end(),
+        [](const ParsingError& error) { return error.token == "N0378F240"; }));
+    
+    // N0378F240 should be removed as an altitude/speed specification
+    EXPECT_EQ(parsedRoute.rawRoute, "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
+    EXPECT_EQ(parsedRoute.totalTokens, 7);
+}
+
+TEST_F(RouteHandlerTest, RouteWithBothUnrecognizedProcedureAndAltitudeSpeed)
+{
+    auto parsedRoute = handler.GetParser()->ParseRawRoute(
+        "TES61X/06 N0378F240 TES60X TESIG N0379F240 A470 DOTMI V512 ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
+
+    // No errors should be generated for the removed tokens
+    EXPECT_EQ(0, std::count_if(parsedRoute.errors.begin(), parsedRoute.errors.end(),
+        [](const ParsingError& error) { 
+            return error.token == "N0378F240" || error.token == "TES60X"; 
+        }));
+    
+    // Both N0378F240 and TES60X should be removed
+    EXPECT_EQ(parsedRoute.rawRoute, "TES61X/06 TESIG N0379F240 A470 DOTMI V512 ABBEY ABBEY3A/07R");
+    EXPECT_EQ(parsedRoute.totalTokens, 8);
+}
+
+TEST_F(RouteHandlerTest, RoutePreservesRecognizedProcedures)
+{
+    // Create a temporary procedure for testing
+    RouteParser::Procedure tes60xProc{
+        "TES60X", 
+        "06", 
+        "ZSNJ", 
+        RouteParser::PROCEDURE_SID, 
+        {RouteParser::Waypoint(RouteParser::WaypointType::FIX, "TESIG", {51.380000, -0.150000})}
+    };
+    
+    // Get the existing procedures and add our test procedure
+    auto procedures = NavdataObject::GetProcedures();
+    procedures.emplace("TES60X", tes60xProc);
+    NavdataObject::SetProcedures(procedures);
+    
+    // Now parse the route with both the recognized procedure and altitude/speed
+    auto parsedRoute = handler.GetParser()->ParseRawRoute(
+        "TES61X/06 N0378F240 TES60X TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
+
+    // Only N0378F240 should be removed, TES60X should be preserved
+    EXPECT_EQ(parsedRoute.rawRoute, "TES61X/06 TES60X TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
+    EXPECT_EQ(parsedRoute.totalTokens, 8);
+    
+    // Restore original procedures
+    // For this test we'll use the Data::SmallProceduresList that was loaded in SetUp()
+    handler.Bootstrap([](const char *msg, const char *level) {}, 
+                     "", Data::SmallProceduresList, "testdata/airways.db");
+}
+
 } // namespace RouteHandlerTests

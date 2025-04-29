@@ -16,6 +16,108 @@
 
 using namespace RouteParser;
 
+const std::regex ParserHandler::sidStarPattern("([A-Z]{2,5}\\d{1,2}[A-Z]?)(?:/([0-9]{2}[LRC]?))?");
+const std::regex ParserHandler::altitudeSpeedPattern("N\\d{4}F\\d{3}");
+
+void ParserHandler::CleanupUnrecognizedPatterns(ParsedRoute& parsedRoute, const std::string& origin, const std::string& destination) {
+    if (parsedRoute.rawRoute.empty() || parsedRoute.waypoints.empty()) {
+        return;
+    }
+
+    // Create a regex for altitude/speed pattern
+    const std::regex altitudeSpeedPattern("\\bN\\d{4}F\\d{3}\\b");
+
+    // Create a regex for SID/STAR pattern
+    const std::regex sidStarPattern("\\b[A-Z]{2,5}\\d{1,2}[A-Z]?(?:/(?:[0-9]{2}[LRC]?))?\\b");
+
+    // Tokenize the raw route
+    std::vector<std::string> tokens = absl::StrSplit(parsedRoute.rawRoute, ' ');
+
+    // Mark tokens to remove
+    std::vector<size_t> indicesToRemove;
+
+    // PART 1: Handle altitude/speed before first waypoint
+    std::string firstWaypointId = parsedRoute.waypoints.front().getIdentifier();
+
+    // Find index of first waypoint
+    size_t firstWaypointIdx = tokens.size();
+    for (size_t i = 0; i < tokens.size(); i++) {
+        if (tokens[i] == firstWaypointId) {
+            firstWaypointIdx = i;
+            break;
+        }
+    }
+
+    // Check for altitude/speed patterns before first waypoint
+    // Skip the first token (which could be a SID)
+    for (size_t i = 1; i < firstWaypointIdx; i++) {
+        if (std::regex_match(tokens[i], altitudeSpeedPattern)) {
+            indicesToRemove.push_back(i);
+        }
+    }
+
+    // PART 2: Handle unrecognized SID/STAR patterns
+    for (size_t i = 0; i < tokens.size(); i++) {
+        // Skip if this is already marked for removal
+        if (std::find(indicesToRemove.begin(), indicesToRemove.end(), i) != indicesToRemove.end()) {
+            continue;
+        }
+
+        // Skip first and last token if they are recognized SID/STAR
+        if ((i == 0 && parsedRoute.SID) || (i == tokens.size() - 1 && parsedRoute.STAR)) {
+            continue;
+        }
+
+        // Check if token matches SID/STAR pattern
+        if (std::regex_match(tokens[i], sidStarPattern)) {
+            std::string procedureName = tokens[i];
+            auto slashPos = procedureName.find('/');
+            if (slashPos != std::string::npos) {
+                procedureName = procedureName.substr(0, slashPos);
+            }
+
+            // Check if this is a real procedure
+            bool isProcedureInDatabase = false;
+            auto procedures = NavdataObject::GetProcedures();
+            auto range = procedures.equal_range(procedureName);
+            for (auto it = range.first; it != range.second; ++it) {
+                if ((it->second.icao == origin && it->second.type == PROCEDURE_SID) ||
+                    (it->second.icao == destination && it->second.type == PROCEDURE_STAR)) {
+                    isProcedureInDatabase = true;
+                    break;
+                }
+            }
+
+            // If not a recognized procedure, mark for removal
+            if (!isProcedureInDatabase) {
+                indicesToRemove.push_back(i);
+            }
+        }
+    }
+
+    // Remove marked tokens in reverse order
+    std::sort(indicesToRemove.begin(), indicesToRemove.end());
+    for (auto it = indicesToRemove.rbegin(); it != indicesToRemove.rend(); ++it) {
+        tokens.erase(tokens.begin() + *it);
+
+        // Also remove any errors associated with this token
+        for (size_t errIdx = 0; errIdx < parsedRoute.errors.size(); ) {
+            if (parsedRoute.errors[errIdx].tokenIndex == static_cast<int>(*it)) {
+                parsedRoute.errors.erase(parsedRoute.errors.begin() + errIdx);
+            }
+            else {
+                errIdx++;
+            }
+        }
+    }
+
+    // Rebuild the raw route
+    parsedRoute.rawRoute = absl::StrJoin(tokens, " ");
+
+    // Correctly update totalTokens by subtracting the number of tokens we removed
+    parsedRoute.totalTokens -= static_cast<int>(indicesToRemove.size());
+}
+
 bool ParserHandler::ParseFirstAndLastPart(ParsedRoute& parsedRoute, int index,
     std::string token, std::string anchorIcao, bool strict, FlightRule currentFlightRule)
 {
@@ -186,7 +288,6 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
 {
     auto parsedRoute = ParsedRoute();
     parsedRoute.rawRoute = route;
-
     route = Utils::CleanupRawRoute(route);
 
     if (route.empty()) {
@@ -197,11 +298,8 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
 
     const std::vector<std::string> routeParts = absl::StrSplit(route, ' ');
     parsedRoute.totalTokens = static_cast<int>(routeParts.size());
-
     auto previousWaypoint = NavdataObject::FindWaypointByType(origin, AIRPORT);
     FlightRule currentFlightRule = filedFlightRule;
-
-    // Get list of valid airways once at the start
 
     for (auto i = 0; i < routeParts.size(); i++) {
         const auto token = routeParts[i];
@@ -281,6 +379,10 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
             parsedRoute.errors.push_back(
                 ParsingError { UNKNOWN_WAYPOINT, "Unknown waypoint", i, token });
         }
+    }
+
+    if (!parsedRoute.waypoints.empty()) {
+        CleanupUnrecognizedPatterns(parsedRoute, origin, destination);
     }
 
     // Add procedure suggestions
