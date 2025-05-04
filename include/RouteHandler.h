@@ -40,6 +40,7 @@ public:
         navdata->LoadAirwayNetwork(airwaysDbFile);
         navdata->LoadWaypoints(navdataDbFile);
         navdata->LoadAirports(navdataDbFile);
+        navdata->LoadRunways(navdataDbFile);
 
         Log::info("RouteHandler is ready.");
         this->isReady = true;

@@ -53,7 +53,8 @@ target_sources(route-handler
         src/Parser.cpp
         src/AirwayNetwork.cpp
         src/AirportNetwork.cpp
-         )
+        src/RunwayNetwork.cpp
+          "include/types/Runway.h" "src/RunwayNetwork.cpp" "include/RunwayNetwork.h")
 
 target_include_directories(route-handler
     PUBLIC

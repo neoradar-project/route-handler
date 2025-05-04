@@ -22,12 +22,12 @@ namespace RouteHandlerTests
         {
             handler = RouteHandler();
             // Any setup needed before each test
-            const std::function<void(const char *, const char *)> logFunc = [](const char *msg, const char *level)
-            {
-                // fmt::print(fg(fmt::color::yellow), "[{}] {}\n", level, msg);
-                // Ignore log messages in tests
-            };
-            handler.Bootstrap(logFunc, "", Data::SmallProceduresList, "testdata/airways.db");
+            const std::function<void(const char*, const char*)> logFunc = [](const char* msg, const char* level)
+                {
+                    // fmt::print(fg(fmt::color::yellow), "[{}] {}\n", level, msg);
+                    // Ignore log messages in tests
+                };
+            handler.Bootstrap(logFunc, "testdata/navdata.db", Data::SmallProceduresList, "testdata/airways.db");
         }
     };
 
@@ -47,10 +47,10 @@ namespace RouteHandlerTests
         auto parsedRoute = handler.GetParser()->ParseRawRoute(
             "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R", "ZSNJ", "VHHH");
 
-    EXPECT_BASIC_ROUTE(parsedRoute);
-    EXPECT_EQ(parsedRoute.rawRoute, "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
-    EXPECT_EQ(parsedRoute.totalTokens, 7);
-}
+        EXPECT_BASIC_ROUTE(parsedRoute);
+        EXPECT_EQ(parsedRoute.rawRoute, "TES61X/06 TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
+        EXPECT_EQ(parsedRoute.totalTokens, 7);
+    }
 
     TEST_F(RouteHandlerTest, BasicRouteWithSIDAndSTARNotTraversable)
     {
@@ -108,11 +108,12 @@ namespace RouteHandlerTests
         auto parsedRoute = handler.GetParser()->ParseRawRoute(
             "KSFO/28L BLUE DCT PAINT KLAX/24R ", "RJTT", "LFPO");
 
-    EXPECT_EQ(parsedRoute.departureRunway, std::nullopt);
-    EXPECT_EQ(parsedRoute.arrivalRunway, std::nullopt);
-    EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::INFO, 2);
-    EXPECT_EQ(parsedRoute.totalTokens, 5);
-}
+        EXPECT_EQ(parsedRoute.departureRunway, std::nullopt);
+        EXPECT_EQ(parsedRoute.arrivalRunway, std::nullopt);
+        EXPECT_PARSE_ERROR_WITH_LEVEL(parsedRoute, ParsingErrorLevel::INFO, 2);
+        EXPECT_EQ(parsedRoute.totalTokens, 5);
+        PRINT_ALL_PARSING_ERRORS(parsedRoute);
+    }
 
     TEST_F(RouteHandlerTest, ChangeOfFlightRule)
     {
@@ -286,11 +287,16 @@ TEST_F(RouteHandlerTest, RoutePreservesRecognizedProcedures)
     // Only N0378F240 should be removed, TES60X should be preserved
     EXPECT_EQ(parsedRoute.rawRoute, "TES61X/06 TES60X TESIG A470 DOTMI V512 ABBEY ABBEY3A/07R");
     EXPECT_EQ(parsedRoute.totalTokens, 8);
+
+	std::cout << "Parsed Route: " << parsedRoute.SID.value().name << std::endl;
     
     // Restore original procedures
     // For this test we'll use the Data::SmallProceduresList that was loaded in SetUp()
     handler.Bootstrap([](const char *msg, const char *level) {}, 
                      "", Data::SmallProceduresList, "testdata/airways.db");
 }
+
+
+
 
 } // namespace RouteHandlerTests

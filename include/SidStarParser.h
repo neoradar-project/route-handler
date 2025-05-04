@@ -39,67 +39,157 @@ namespace RouteParser {
                 waypointIds.push_back(wpt.getIdentifier());
             }
 
-            // Handle SID suggestion if no SID or departure runway specified
-            if (!parsedRoute.SID.has_value() && !parsedRoute.departureRunway.has_value()) {
-                auto sidSuggestion = airportConfigurator->FindBestSID(origin, waypointIds);
-                if (sidSuggestion) {
-                    parsedRoute.suggestedDepartureRunway = sidSuggestion->first;
-                    std::string procedureName = sidSuggestion->second;
+            // Handle SID suggestion
+            if (!parsedRoute.SID.has_value()) {
+                if (parsedRoute.departureRunway.has_value() && !waypointIds.empty()) {
+                    // We have a departure runway but no SID - find a SID that matches both the runway and first waypoint
+                    const std::string& runway = parsedRoute.departureRunway.value();
+                    const std::string& firstWaypoint = waypointIds[0];
 
-                    if (!procedureName.empty()) {
-                        // Find and store the actual procedure
-                        auto procedures = NavdataObject::GetProcedures();
-                        auto range = procedures.equal_range(procedureName);
-                        for (auto it = range.first; it != range.second; ++it) {
-                            if (it->second.icao == origin &&
-                                it->second.type == PROCEDURE_SID &&
-                                it->second.runway == sidSuggestion->first) {
-                                parsedRoute.suggestedSID = it->second;
-                                break;
+                    // Get all procedures for this airport
+                    auto procedures = NavdataObject::GetProcedures();
+
+                    // Find SIDs for this airport that match both the runway and first waypoint
+                    for (auto it = procedures.begin(); it != procedures.end(); ++it) {
+                        if (it->second.icao == origin &&
+                            it->second.type == PROCEDURE_SID &&
+                            it->second.runway == runway) {
+
+                            // Check if any of this procedure's waypoints match the first route waypoint
+                            for (const auto& procWpt : it->second.waypoints) {
+                                if (procWpt.getIdentifier() == firstWaypoint) {
+                                    // Found a procedure that matches both the runway and the first waypoint
+                                    parsedRoute.suggestedDepartureRunway = runway;
+                                    parsedRoute.suggestedSID = it->second;
+
+                                    // Add info-level parsing error about the suggestion
+                                    parsedRoute.errors.push_back({
+                                        ParsingErrorType::NO_PROCEDURE_FOUND,
+                                        "Suggesting SID " + it->second.name + " for runway " + runway,
+                                        0, // Index 0 (start of route)
+                                        origin,
+                                        ParsingErrorLevel::INFO
+                                        });
+
+                                    break;
+                                }
+                            }
+
+                            if (parsedRoute.suggestedSID.has_value()) {
+                                break; // Found a match, stop searching
                             }
                         }
                     }
 
-                    // Add info-level parsing error about the suggestion
-                    parsedRoute.errors.push_back({
-                        ParsingErrorType::NO_PROCEDURE_FOUND,
-                        "Suggesting SID " + procedureName + " for runway " + sidSuggestion->first,
-                        0, // Index 0 (start of route)
-                        origin,
-                        ParsingErrorLevel::INFO
-                        });
+                    // If no match found, we don't suggest anything
+                }
+                else if (!parsedRoute.departureRunway.has_value()) {
+                    // Original behavior: No departure runway specified
+                    auto sidSuggestion = airportConfigurator->FindBestSID(origin, waypointIds);
+                    if (sidSuggestion) {
+                        parsedRoute.suggestedDepartureRunway = sidSuggestion->first;
+                        std::string procedureName = sidSuggestion->second;
+
+                        if (!procedureName.empty()) {
+                            // Find and store the actual procedure
+                            auto procedures = NavdataObject::GetProcedures();
+                            auto range = procedures.equal_range(procedureName);
+                            for (auto it = range.first; it != range.second; ++it) {
+                                if (it->second.icao == origin &&
+                                    it->second.type == PROCEDURE_SID &&
+                                    it->second.runway == sidSuggestion->first) {
+                                    parsedRoute.suggestedSID = it->second;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Add info-level parsing error about the suggestion
+                        parsedRoute.errors.push_back({
+                            ParsingErrorType::NO_PROCEDURE_FOUND,
+                            "Suggesting SID " + procedureName + " for runway " + sidSuggestion->first,
+                            0, // Index 0 (start of route)
+                            origin,
+                            ParsingErrorLevel::INFO
+                            });
+                    }
                 }
             }
 
-            // Handle STAR suggestion if no STAR or arrival runway specified
-            if (!parsedRoute.STAR.has_value() && !parsedRoute.arrivalRunway.has_value()) {
-                auto starSuggestion = airportConfigurator->FindBestSTAR(destination, waypointIds);
-                if (starSuggestion) {
-                    parsedRoute.suggestedArrivalRunway = starSuggestion->first;
-                    std::string procedureName = starSuggestion->second;
+            // Handle STAR suggestion
+            if (!parsedRoute.STAR.has_value()) {
+                if (parsedRoute.arrivalRunway.has_value() && !waypointIds.empty()) {
+                    // We have an arrival runway but no STAR - find a STAR that matches both the runway and last waypoint
+                    const std::string& runway = parsedRoute.arrivalRunway.value();
+                    const std::string& lastWaypoint = waypointIds.back();
 
-                    if (!procedureName.empty()) {
-                        // Find and store the actual procedure
-                        auto procedures = NavdataObject::GetProcedures();
-                        auto range = procedures.equal_range(procedureName);
-                        for (auto it = range.first; it != range.second; ++it) {
-                            if (it->second.icao == destination &&
-                                it->second.type == PROCEDURE_STAR &&
-                                it->second.runway == starSuggestion->first) {
-                                parsedRoute.suggestedSTAR = it->second;
-                                break;
+                    // Get all procedures for this airport
+                    auto procedures = NavdataObject::GetProcedures();
+
+                    // Find STARs for this airport that match both the runway and last waypoint
+                    for (auto it = procedures.begin(); it != procedures.end(); ++it) {
+                        if (it->second.icao == destination &&
+                            it->second.type == PROCEDURE_STAR &&
+                            it->second.runway == runway) {
+
+                            // Check if any of this procedure's waypoints match the last route waypoint
+                            for (const auto& procWpt : it->second.waypoints) {
+                                if (procWpt.getIdentifier() == lastWaypoint) {
+                                    // Found a procedure that matches both the runway and the last waypoint
+                                    parsedRoute.suggestedArrivalRunway = runway;
+                                    parsedRoute.suggestedSTAR = it->second;
+
+                                    // Add info-level parsing error about the suggestion
+                                    parsedRoute.errors.push_back({
+                                        ParsingErrorType::NO_PROCEDURE_FOUND,
+                                        "Suggesting STAR " + it->second.name + " for runway " + runway,
+                                        parsedRoute.totalTokens - 1, // Index of last token
+                                        destination,
+                                        ParsingErrorLevel::INFO
+                                        });
+
+                                    break;
+                                }
+                            }
+
+                            if (parsedRoute.suggestedSTAR.has_value()) {
+                                break; // Found a match, stop searching
                             }
                         }
                     }
 
-                    // Add info-level parsing error about the suggestion
-                    parsedRoute.errors.push_back({
-                        ParsingErrorType::NO_PROCEDURE_FOUND,
-                        "Suggesting STAR " + procedureName + " for runway " + starSuggestion->first,
-                        parsedRoute.totalTokens - 1, // Index of last token
-                        destination,
-                        ParsingErrorLevel::INFO
-                        });
+                    // If no match found, we don't suggest anything
+                }
+                else if (!parsedRoute.arrivalRunway.has_value()) {
+                    // Original behavior: No arrival runway specified
+                    auto starSuggestion = airportConfigurator->FindBestSTAR(destination, waypointIds);
+                    if (starSuggestion) {
+                        parsedRoute.suggestedArrivalRunway = starSuggestion->first;
+                        std::string procedureName = starSuggestion->second;
+
+                        if (!procedureName.empty()) {
+                            // Find and store the actual procedure
+                            auto procedures = NavdataObject::GetProcedures();
+                            auto range = procedures.equal_range(procedureName);
+                            for (auto it = range.first; it != range.second; ++it) {
+                                if (it->second.icao == destination &&
+                                    it->second.type == PROCEDURE_STAR &&
+                                    it->second.runway == starSuggestion->first) {
+                                    parsedRoute.suggestedSTAR = it->second;
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Add info-level parsing error about the suggestion
+                        parsedRoute.errors.push_back({
+                            ParsingErrorType::NO_PROCEDURE_FOUND,
+                            "Suggesting STAR " + procedureName + " for runway " + starSuggestion->first,
+                            parsedRoute.totalTokens - 1, // Index of last token
+                            destination,
+                            ParsingErrorLevel::INFO
+                            });
+                    }
                 }
             }
         }
@@ -116,73 +206,112 @@ namespace RouteParser {
         }
 
         static FoundProcedure FindProcedure(const std::string& token,
-            const std::string& icao,
-            ProcedureType type, int tokenIndex) {
-            if (token.empty() || icao.empty()) {
+            const std::string& anchorIcao,
+            ProcedureType type, int tokenIndex)
+        {
+            if (token.empty() || anchorIcao.empty()) {
                 return FoundProcedure{
                     {},
                     {},
                     {},
                     {ParsingError{ParsingErrorType::INVALID_DATA, "Empty token or ICAO",
-                                  tokenIndex, token}} };
+                                  tokenIndex, token}}
+                };
             }
 
+            // Extract runway if present
             std::optional<std::string> runway = FindRunway(token);
             const std::vector<std::string> parts = absl::StrSplit(token, '/');
+            std::string procedureToken = parts[0];
 
-            std::string procedureToken = token;
-            if (!parts.empty() && parts.size() >= 2) {
-                procedureToken = parts[0];
+            // Check if this is a procedure pattern (2-5 letters followed by 1-2 digits and optional letter)
+            bool isProcedurePattern = std::regex_match(procedureToken,
+                std::regex("[A-Z]{2,5}\\d{1,2}[A-Z]?"));
+
+            // Check if this is an airport code pattern (exactly 4 letters)
+            bool isAirportPattern = (procedureToken.length() == 4 &&
+                std::all_of(procedureToken.begin(), procedureToken.end(),
+                    [](char c) { return std::isalpha(c); }));
+
+            // Prioritize procedure lookup if it matches the pattern
+            std::vector<RouteParser::Procedure> matchingProcedures;
+            if (isProcedurePattern) {
+                const auto& procedures = NavdataObject::GetProcedures();
+                auto range = procedures.equal_range(procedureToken);
+
+                for (auto it = range.first; it != range.second; ++it) {
+                    if (it->second.icao == anchorIcao && it->second.type == type) {
+                        matchingProcedures.push_back(it->second);
+                    }
+                }
+
+                // If we have procedures and a runway, try to find an exact match
+                if (!matchingProcedures.empty() && runway) {
+                    for (const auto& procedure : matchingProcedures) {
+                        if (procedure.runway == runway.value()) {
+                            // Full valid match for procedure + runway, highest priority
+                            return FoundProcedure{ procedureToken, runway, procedure };
+                        }
+                    }
+					std::string typeStr = (type == PROCEDURE_SID) ? "SID" : "STAR";
+                    // No exact runway match but we have procedures
+                    return FoundProcedure{
+                            std::nullopt,
+                            std::nullopt,
+                            std::nullopt,
+                            
+                        {ParsingError{
+                            ParsingErrorType::PROCEDURE_RUNWAY_MISMATCH,
+                            fmt::format("No matching runway {} found for procedure {} at {}, "
+                                       "ignoring confirmed {}",
+                                       runway.value_or("N/A"), procedureToken, anchorIcao, typeStr),
+                            tokenIndex, procedureToken, ParsingErrorLevel::PARSE_ERROR}}
+                    };
+                }
+
+
             }
 
-            // Handle direct ICAO+runway case
-            if (runway && procedureToken.length() == 4 && procedureToken == icao) {
+            // Handle airport code + runway case (lower priority than procedures)
+            if (isAirportPattern && runway) {
+                // Validate the runway exists at the airport
+                if (procedureToken != anchorIcao) {
+                    // Airport doesn't match - generate INFO level error
+                    return FoundProcedure{
+                        std::nullopt,
+                        std::nullopt,
+                        std::nullopt,
+                        {ParsingError{
+                            ParsingErrorType::PROCEDURE_AIRPORT_MISMATCH,
+                            fmt::format("Airport code {} doesn't match expected {}",
+                                      procedureToken, anchorIcao),
+                            tokenIndex, token, ParsingErrorLevel::INFO}}
+                    };
+                }
+                auto runwayNetwork = NavdataObject::GetRunwayNetwork();
+                if (runwayNetwork) {
+                    bool runwayExists = runwayNetwork->runwayExistsAtAirport(procedureToken, runway.value());
+
+                    if (!runwayExists) {
+                        return FoundProcedure{
+                            std::nullopt,
+                            std::nullopt,
+                            std::nullopt,
+                            {ParsingError{
+                                ParsingErrorType::INVALID_RUNWAY,
+                                fmt::format("Runway {} not found at airport {}",
+                                          runway.value_or("N/A"), procedureToken),
+                                tokenIndex, token, ParsingErrorLevel::PARSE_ERROR}}
+                        };
+                    }
+                }
+
+                // Valid airport + runway combination
                 return FoundProcedure{ std::nullopt, runway, std::nullopt };
             }
 
-            // Safe procedures access
-            const auto& procedures = NavdataObject::GetProcedures();
-            std::vector<RouteParser::Procedure> matchingProcedures;
-
-            auto range = procedures.equal_range(procedureToken);
-            for (auto it = range.first; it != range.second; ++it) {
-                if (it->second.icao == icao && it->second.type == type) {
-                    matchingProcedures.push_back(it->second);
-                }
-            }
-
-            if (matchingProcedures.empty()) {
-                // No procedure found for the given token, and runway has been checked against icaos
-                return FoundProcedure{ std::nullopt, std::nullopt, std::nullopt };
-            }
-
-            // There is no runway but matching procedures
-            if (!runway) {
-                return FoundProcedure{ procedureToken, runway, matchingProcedures[0] };
-            }
-
-            if (runway) {
-                // There is a runway, there are matching procedure, let's try and catch
-                // the right one
-                for (const auto& procedure : matchingProcedures) {
-                    if (procedure.runway == runway) {
-                        // Full, valid match for procedure + runway
-                        return FoundProcedure{ procedureToken, runway, procedure };
-                    }
-                }
-            }
-
-            // No matching runway found for procedure, return the runway with an error
-            return FoundProcedure{
-                procedureToken,
-                {},
-                matchingProcedures[0],
-                {ParsingError{
-                    ParsingErrorType::PROCEDURE_RUNWAY_MISMATCH,
-                    fmt::format("No matching runway {} found for procedure {} at {}, "
-                                "returning first matching procedure",
-                                runway.value_or("N/A"), procedureToken, icao),
-                    tokenIndex, procedureToken, ParsingErrorLevel::PARSE_ERROR}} };
+            // Nothing found
+            return FoundProcedure{ std::nullopt, std::nullopt, std::nullopt };
         }
     };
 }; // namespace RouteParser

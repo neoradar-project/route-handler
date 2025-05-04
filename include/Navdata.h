@@ -15,6 +15,7 @@
 #include "AirwayNetwork.h"
 #include "WaypointNetwork.h"
 #include "AirportNetwork.h"
+#include "RunwayNetwork.h"
 namespace RouteParser
 {
 
@@ -42,6 +43,8 @@ namespace RouteParser
     static void LoadWaypoints(std::string waypointsFilePath);
 
     static void LoadAirports(std::string airportsFilePath);
+
+    static void LoadRunways(std::string runwaysFilePath);
 
     static void LoadNseWaypoints(
         const std::vector<Waypoint>& waypoints, const std::string& providerName);
@@ -113,6 +116,11 @@ namespace RouteParser
       return airwayNetwork;
     }
 
+	static std::shared_ptr<RunwayNetwork> GetRunwayNetwork()
+	{
+		return runwayNetwork;
+	}
+
     static Waypoint FindOrCreateWaypointByID(std::string_view identifier,
                                              erkir::spherical::Point position)
     {
@@ -140,6 +148,7 @@ namespace RouteParser
     inline static std::shared_ptr<AirwayNetwork> airwayNetwork;
     inline static std::shared_ptr<WaypointNetwork> waypointNetwork;
     inline static std::shared_ptr<AirportNetwork> airportNetwork;
+    inline static std::shared_ptr<RunwayNetwork> runwayNetwork;
   };
 
   // const static auto NavdataContainer = std::make_shared<NavdataObject>();

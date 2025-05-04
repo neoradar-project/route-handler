@@ -37,8 +37,8 @@ namespace RouteParser
          * if the found procedure is not in dataset
          */
         bool ParseFirstAndLastPart(ParsedRoute& parsedRoute, int index,
-            std::string token, std::string anchorIcao,
-            bool strict = false,
+            std::string token, std::string anchorIcao, bool strict,
+            std::string& tokenToRemove,
             FlightRule currentFlightRule = IFR);
         /**
          * @brief Performs a waypoint check on the parsed route.

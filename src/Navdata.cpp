@@ -43,7 +43,11 @@ void NavdataObject::LoadAirports(std::string airportsFilePath)
     airportNetwork = std::make_shared<AirportNetwork>(airportsFilePath);
 }
 
+void NavdataObject::LoadRunways(std::string runwaysFilePath)
+{
 
+    runwayNetwork = std::make_shared<RunwayNetwork>(runwaysFilePath);
+}
 
 void NavdataObject::LoadNseWaypoints(
     const std::vector<Waypoint>& waypoints, const std::string& providerName)
