@@ -129,6 +129,21 @@ namespace RouteHandlerTests {
                         }
                     }
                 },
+            {
+    "LUKIP9ExMOPAR7E",
+    RouteParser::Procedure { "LUKIP9ExMOPAR7E", "08R", "LFPG",
+        RouteParser::ProcedureType::PROCEDURE_STAR,
+        {
+            RouteParser::Waypoint(RouteParser::WaypointType::FIX, "LUKIP", {49.1234, 2.5432}),
+            RouteParser::Waypoint(RouteParser::WaypointType::FIX, "KOLIV", {49.2234, 2.6432}),
+            RouteParser::Waypoint(RouteParser::WaypointType::FIX, "MOPAR", {49.3234, 2.7432}),
+            RouteParser::Waypoint(RouteParser::WaypointType::FIX, "PG527", {49.4234, 2.8432}),
+            RouteParser::Waypoint(RouteParser::WaypointType::FIX, "IG09L", {49.5234, 2.9432}),
+            RouteParser::Waypoint(RouteParser::WaypointType::FIX, "PNE11", {49.6234, 3.0432}),
+            RouteParser::Waypoint(RouteParser::WaypointType::FIX, "PNE05", {49.7234, 3.1432})
+        }
+    }
+},
             { "DET2J",
                     RouteParser::Procedure { "DET2J", "09L", "EGLL",
                         RouteParser::ProcedureType::PROCEDURE_SID,
