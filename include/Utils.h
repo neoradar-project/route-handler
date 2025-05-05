@@ -13,10 +13,45 @@
 #include <string>
 #include "Regexes.h"
 #include <ctre.hpp>
+#include <regex>
 namespace RouteParser
 {
   namespace Utils
   {
+   
+    static std::string DetermineTokenType(const std::string& token) {
+        // ATS route pattern (as described):
+        // [prefix?][letter][number]
+        // Prefix: K, U, S (optional)
+        // Letter: A,B,G,R,L,M,N,P,H,J,V,W,Q,T,Y,Z
+        // Number: 1-999
+        std::regex airwayPattern(R"(^(?:[KUS])?[ABGRLMNPHJVWQTYZ]\d{1,3}[FG]?$)");
+
+        // Airport ICAO codes are 4 letters
+        std::regex airportPattern(R"(^[A-Z]{4}$)");
+
+        // VOR/NDB typically 2-3 letters
+        std::regex vorNdbPattern(R"(^[A-Z]{2,3}$)");
+
+        // Waypoint/Fix typically 5 letters
+        std::regex fixPattern(R"(^[A-Z]{5}$)");
+
+        if (std::regex_match(token, airwayPattern)) {
+            return "AIRWAY";
+        }
+        else if (std::regex_match(token, airportPattern)) {
+            return "AIRPORT";
+        }
+        else if (std::regex_match(token, vorNdbPattern)) {
+            return "NAVAID";
+        }
+        else if (std::regex_match(token, fixPattern)) {
+            return "FIX";
+        }
+        else {
+            return "UNKNOWN";
+        }
+    }
     static std::string CleanupRawRoute(std::string route)
     {
       // First replace colons and commas with spaces and remove the + sign when amended

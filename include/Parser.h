@@ -69,6 +69,36 @@ namespace RouteParser
             const std::string& origin,
             const std::string& destination);
 
+        void AddAppropriateError(ParsedRoute& parsedRoute, int tokenIndex, const std::string& token, const std::string& tokenType) {
+            ParsingErrorType errorCode;
+            std::string errorMessage;
+
+            if (tokenType == "AIRWAY") {
+                errorCode = UNKNOWN_AIRWAY;
+                errorMessage = "Unknown airway";
+            }
+            else if (tokenType == "AIRPORT") {
+                errorCode = UNKNOWN_AIRPORT;
+                errorMessage = "Unknown airport code";
+            }
+            else if (tokenType == "NAVAID") {
+                errorCode = UNKNOWN_NAVAID;
+                errorMessage = "Unknown navigational aid";
+            }
+            else if (tokenType == "FIX") {
+                errorCode = UNKNOWN_WAYPOINT;
+                errorMessage = "Unknown waypoint";
+            }
+            else {
+                errorCode = INVALID_TOKEN_FORMAT;
+                errorMessage = "Unrecognized token format";
+            }
+
+            parsedRoute.errors.push_back(
+                ParsingError{ errorCode, errorMessage, tokenIndex, token, PARSE_ERROR });
+        }
+
+
     public:
         /**
          * @brief Parses a raw route string into a ParsedRoute object.

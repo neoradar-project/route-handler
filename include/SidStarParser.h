@@ -98,19 +98,19 @@ namespace RouteParser {
                                     it->second.type == PROCEDURE_SID &&
                                     it->second.runway == sidSuggestion->first) {
                                     parsedRoute.suggestedSID = it->second;
+
+                                    parsedRoute.errors.push_back({
+                                        ParsingErrorType::NO_PROCEDURE_FOUND,
+                                        "Suggesting SID " + procedureName + " for runway " + sidSuggestion->first,
+                                        0, // Index 0 (start of route)
+                                        origin,
+                                        ParsingErrorLevel::INFO
+                                    });
+
                                     break;
                                 }
                             }
                         }
-
-                        // Add info-level parsing error about the suggestion
-                        parsedRoute.errors.push_back({
-                            ParsingErrorType::NO_PROCEDURE_FOUND,
-                            "Suggesting SID " + procedureName + " for runway " + sidSuggestion->first,
-                            0, // Index 0 (start of route)
-                            origin,
-                            ParsingErrorLevel::INFO
-                            });
                     }
                 }
 
@@ -173,19 +173,17 @@ namespace RouteParser {
                                     it->second.type == PROCEDURE_STAR &&
                                     it->second.runway == starSuggestion->first) {
                                     parsedRoute.suggestedSTAR = it->second;
+                                    parsedRoute.errors.push_back({
+                                        ParsingErrorType::NO_PROCEDURE_FOUND,
+                                        "Suggesting STAR " + procedureName + " for runway " + starSuggestion->first,
+                                        parsedRoute.totalTokens - 1, // Index of last token
+                                        destination,
+                                        ParsingErrorLevel::INFO
+                                    });
                                     break;
                                 }
                             }
                         }
-
-                        // Add info-level parsing error about the suggestion
-                        parsedRoute.errors.push_back({
-                            ParsingErrorType::NO_PROCEDURE_FOUND,
-                            "Suggesting STAR " + procedureName + " for runway " + starSuggestion->first,
-                            parsedRoute.totalTokens - 1, // Index of last token
-                            destination,
-                            ParsingErrorLevel::INFO
-                            });
                     }
                 }
         }

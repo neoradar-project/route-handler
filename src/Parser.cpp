@@ -573,6 +573,16 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
             }
         }
 
+        if (!isAirway && !isPotentialStar &&
+            token != "DCT" && !token.empty() && token != " " && token != "." && token != ".." &&
+            token != origin && token != destination) {
+
+            if (std::find(tokensToRemove.begin(), tokensToRemove.end(), token) == tokensToRemove.end()) {
+                std::string tokenType = Utils::DetermineTokenType(token);
+                AddAppropriateError(parsedRoute, i, token, tokenType);
+            }
+        }
+
         // If we reach here and the token wasn't identified as an airway or waypoint,
         // keep going - we'll process unknown and STAR tokens in the second pass
     }
@@ -667,8 +677,8 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
             // Mark as unknown waypoint if not an airway
             bool isAirway = NavdataObject::GetAirwayNetwork()->airwayExists(token);
             if (!isAirway) {
-                parsedRoute.errors.push_back(
-                    ParsingError{ UNKNOWN_WAYPOINT, "Unknown waypoint", i, token });
+                std::string tokenType = Utils::DetermineTokenType(token);
+                AddAppropriateError(parsedRoute, i, token, tokenType);
             }
         }
     }
