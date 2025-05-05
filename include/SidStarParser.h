@@ -220,7 +220,7 @@ namespace RouteParser {
 
             // Check if this is a procedure pattern (2-5 letters followed by 1-2 digits and optional letter)
             bool isProcedurePattern = std::regex_match(procedureToken,
-                std::regex(R"([A-Z]{5}\d[A-Z]?(?:.*)?(?:\/\d{2}[LRC]?)?)"));
+                std::regex(R"([A-Z]{3,5}\d[A-Z]?(?:.*)?(?:\/\d{2}[LRC]?)?)"));
 
             // Check if this is an airport code pattern (exactly 4 letters)
             bool isAirportPattern = (procedureToken.length() == 4 &&
