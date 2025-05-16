@@ -1,27 +1,25 @@
 #pragma once
+#include "AirportNetwork.h"
+#include "AirwayNetwork.h"
 #include "Log.h"
+#include "RunwayNetwork.h"
+#include "Utils.h"
+#include "WaypointNetwork.h"
 #include "types/Procedure.h"
 #include "types/Waypoint.h"
 #include <exception>
 #include <filesystem>
 #include <fstream>
-#include <sstream>
+#include <iostream>
 #include <mutex>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <unordered_map>
-#include "Utils.h"
-#include <iostream>
-#include "AirwayNetwork.h"
-#include "WaypointNetwork.h"
-#include "AirportNetwork.h"
-#include "RunwayNetwork.h"
-namespace RouteParser
-{
+namespace RouteParser {
 
-  class NavdataObject
-  {
-  public:
+class NavdataObject {
+public:
     NavdataObject();
 
     /**
@@ -29,14 +27,12 @@ namespace RouteParser
      * @param waypoints The waypoints to set.
      * @param procedures The procedures to set.
      */
-    static void
-    SetProcedures(
-        std::unordered_multimap<std::string, Procedure> newProcedures)
+    static void SetProcedures(std::multimap<std::string, Procedure> newProcedures)
     {
-      std::lock_guard<std::mutex> lock(_mutex);
+        std::lock_guard<std::mutex> lock(_mutex);
 
-      procedures = newProcedures;
-      Log::info("Loaded {} procedures into NavdataObject", procedures.size());
+        procedures = newProcedures;
+        Log::info("Loaded {} procedures into NavdataObject", procedures.size());
     }
     static void LoadAirwayNetwork(std::string airwaysFilePath);
 
@@ -51,28 +47,27 @@ namespace RouteParser
 
     static const std::unordered_map<std::string, Waypoint> GetWaypoints()
     {
-      std::lock_guard<std::mutex> lock(_mutex);
-      return waypoints;
+        std::lock_guard<std::mutex> lock(_mutex);
+        return waypoints;
     }
 
     static const std::shared_ptr<WaypointNetwork> GetWaypointNetwork()
     {
-      return waypointNetwork;
+        return waypointNetwork;
     }
 
     static void Reset()
     {
-      if (waypointNetwork)
-      {
-        waypointNetwork = std::make_shared<WaypointNetwork>();
-      }
-      procedures.clear();
+        if (waypointNetwork) {
+            waypointNetwork = std::make_shared<WaypointNetwork>();
+        }
+        procedures.clear();
     }
 
-    static std::unordered_multimap<std::string, Procedure> GetProcedures()
+    static std::multimap<std::string, Procedure> GetProcedures()
     {
-      std::lock_guard<std::mutex> lock(_mutex);
-      return procedures;
+        std::lock_guard<std::mutex> lock(_mutex);
+        return procedures;
     }
 
     /**
@@ -80,8 +75,8 @@ namespace RouteParser
      * @param icao The ICAO code of the airport.
      * @return An optional containing the airport if found, or an empty optional.
      */
-    static std::optional<Waypoint> FindWaypointByType(std::string icao,
-                                                      WaypointType type);
+    static std::optional<Waypoint> FindWaypointByType(
+        std::string icao, WaypointType type);
 
     /**
      * @brief Finds the closest waypoint to a given waypoint by distance.
@@ -90,9 +85,8 @@ namespace RouteParser
      * @return An optional containing the closest waypoint if found, or an empty
      * optional.
      */
-    static std::optional<Waypoint>
-    FindClosestWaypointTo(std::string nextWaypoint,
-                          std::optional<Waypoint> reference);
+    static std::optional<Waypoint> FindClosestWaypointTo(
+        std::string nextWaypoint, std::optional<Waypoint> reference);
 
     /**
      * @brief Finds a waypoint by its identifier.
@@ -108,48 +102,39 @@ namespace RouteParser
      * @return An optional containing the closest waypoint if found, or an empty
      * optional.
      */
-    static std::optional<Waypoint> FindClosestWaypoint(std::string identifier,
-                                                       erkir::spherical::Point referencePoint);
+    static std::optional<Waypoint> FindClosestWaypoint(
+        std::string identifier, erkir::spherical::Point referencePoint);
 
-    static std::shared_ptr<AirwayNetwork> GetAirwayNetwork()
+    static std::shared_ptr<AirwayNetwork> GetAirwayNetwork() { return airwayNetwork; }
+
+    static std::shared_ptr<RunwayNetwork> GetRunwayNetwork() { return runwayNetwork; }
+
+    static Waypoint FindOrCreateWaypointByID(
+        std::string_view identifier, erkir::spherical::Point position)
     {
-      return airwayNetwork;
+        std::lock_guard<std::mutex> lock(waypointsMutex);
+        auto it = waypoints.find(std::string(identifier));
+        if (it != waypoints.end()) {
+            return it->second;
+        }
+
+        auto [newIt, inserted] = waypoints.try_emplace(std::string(identifier),
+            Utils::GetWaypointTypeByIdentifier(std::string(identifier)),
+            std::string(identifier), position);
+        return newIt->second;
     }
 
-	static std::shared_ptr<RunwayNetwork> GetRunwayNetwork()
-	{
-		return runwayNetwork;
-	}
-
-    static Waypoint FindOrCreateWaypointByID(std::string_view identifier,
-                                             erkir::spherical::Point position)
-    {
-      std::lock_guard<std::mutex> lock(waypointsMutex);
-      auto it = waypoints.find(std::string(identifier));
-      if (it != waypoints.end())
-      {
-        return it->second;
-      }
-
-      auto [newIt, inserted] = waypoints.try_emplace(std::string(identifier),
-                                                     Utils::GetWaypointTypeByIdentifier(std::string(identifier)),
-                                                     std::string(identifier),
-                                                     position);
-      return newIt->second;
-    }
-
-  private:
+private:
     inline static std::mutex _mutex;
     inline static std::mutex waypointsMutex;
 
-
     inline static std::unordered_map<std::string, Waypoint> waypoints = {};
-    inline static std::unordered_multimap<std::string, Procedure> procedures = {};
+    inline static std::multimap<std::string, Procedure> procedures = {};
     inline static std::shared_ptr<AirwayNetwork> airwayNetwork;
     inline static std::shared_ptr<WaypointNetwork> waypointNetwork;
     inline static std::shared_ptr<AirportNetwork> airportNetwork;
     inline static std::shared_ptr<RunwayNetwork> runwayNetwork;
-  };
+};
 
-  // const static auto NavdataContainer = std::make_shared<NavdataObject>();
+// const static auto NavdataContainer = std::make_shared<NavdataObject>();
 } // namespace RouteParser

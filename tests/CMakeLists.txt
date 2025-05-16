@@ -93,6 +93,15 @@ if(TEST_USE_REALDATA)
                 $<TARGET_FILE_DIR:${PROJECT_NAME}>/testdata/navdata.db
         )
     endif()
+
+    #Handle nse-flxx.json
+    if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/testdata/nse-flxx.json)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${CMAKE_CURRENT_SOURCE_DIR}/testdata/nse-flxx.json
+                $<TARGET_FILE_DIR:${PROJECT_NAME}>/testdata/nse-flxx.json
+        )
+    endif()
 endif()
 
 target_compile_definitions(${PROJECT_NAME}

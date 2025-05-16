@@ -1,8 +1,8 @@
 #pragma once
+#include "AirportConfigurator.h"
 #include "Log.h"
 #include "Navdata.h"
 #include "Parser.h"
-#include "AirportConfigurator.h"
 #include "types/Procedure.h"
 #include <memory>
 #include <string>
@@ -11,14 +11,14 @@
 #include <unordered_map>
 using namespace RouteParser;
 
-class RouteHandler
-{
+class RouteHandler {
 public:
     RouteHandler()
     {
         this->airportConfigurator = std::make_shared<RouteParser::AirportConfigurator>();
         this->navdata = std::make_shared<RouteParser::NavdataObject>();
-        this->parser = std::make_shared<RouteParser::ParserHandler>(this->navdata, this->airportConfigurator);
+        this->parser = std::make_shared<RouteParser::ParserHandler>(
+            this->navdata, this->airportConfigurator);
     }
     ~RouteHandler()
     {
@@ -31,8 +31,7 @@ public:
     std::shared_ptr<RouteParser::AirportConfigurator> GetAirportConfigurator();
 
     void Bootstrap(ILogger logFunc, std::string navdataDbFile,
-                   std::unordered_multimap<std::string, Procedure> procedures,
-                   std::string airwaysDbFile)
+        std::multimap<std::string, Procedure> procedures, std::string airwaysDbFile)
     {
         Log::SetLogger(logFunc);
         navdata->SetProcedures(procedures);
