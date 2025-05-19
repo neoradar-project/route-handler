@@ -31,7 +31,7 @@ public:
     std::shared_ptr<RouteParser::AirportConfigurator> GetAirportConfigurator();
 
     void Bootstrap(ILogger logFunc, std::string navdataDbFile,
-        std::multimap<std::string, Procedure> procedures, std::string airwaysDbFile)
+        std::vector<Procedure> procedures, std::string airwaysDbFile)
     {
         Log::SetLogger(logFunc);
         navdata->SetProcedures(procedures);

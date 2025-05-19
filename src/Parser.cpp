@@ -102,14 +102,12 @@ void ParserHandler::CleanupUnrecognizedPatterns(
             procedureName = procedureName.substr(0, slashPos);
         }
 
-        // Check if this is a real procedure
+        auto matchingProcedures = NavdataObject::GetProceduresByName(procedureName);
         bool isProcedureInDatabase = false;
-        auto procedures = NavdataObject::GetProcedures();
-        auto range = procedures.equal_range(procedureName);
-        for (auto it = range.first; it != range.second; ++it) {
-            if ((it->second.icao == origin && it->second.type == PROCEDURE_SID)
-                || (it->second.icao == destination
-                    && it->second.type == PROCEDURE_STAR)) {
+
+        for (const auto& procedure : matchingProcedures) {
+            if ((procedure.icao == origin && procedure.type == PROCEDURE_SID)
+                || (procedure.icao == destination && procedure.type == PROCEDURE_STAR)) {
                 isProcedureInDatabase = true;
                 break;
             }

@@ -22,18 +22,47 @@ class NavdataObject {
 public:
     NavdataObject();
 
-    /**
-     * @brief Sets the waypoints and procedures.
-     * @param waypoints The waypoints to set.
-     * @param procedures The procedures to set.
-     */
-    static void SetProcedures(std::multimap<std::string, Procedure> newProcedures)
+    static void SetProcedures(const std::vector<Procedure>& newProcedures)
     {
         std::lock_guard<std::mutex> lock(_mutex);
-
         procedures = newProcedures;
+
+        // Build the index
+        procedureNameIndex.clear();
+        procedureAirportIndex.clear();
+        for (size_t i = 0; i < procedures.size(); i++) {
+            procedureNameIndex[procedures[i].name].push_back(i);
+            procedureAirportIndex[procedures[i].icao].push_back(i);
+        }
+
         Log::info("Loaded {} procedures into NavdataObject", procedures.size());
     }
+
+    // Fast lookup by name
+    static std::vector<Procedure> GetProceduresByName(const std::string& name)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        std::vector<Procedure> result;
+        auto it = procedureNameIndex.find(name);
+        if (it != procedureNameIndex.end()) {
+            for (size_t idx : it->second) {
+                result.push_back(procedures[idx]);
+            }
+        }
+        return result;
+    }
+
+    // Fast lookup by airport ICAO
+    static std::vector<size_t> GetProceduresByAirport(const std::string& icao)
+    {
+        std::lock_guard<std::mutex> lock(_mutex);
+        auto it = procedureAirportIndex.find(icao);
+        if (it != procedureAirportIndex.end()) {
+            return it->second;
+        }
+        return {};
+    }
+
     static void LoadAirwayNetwork(std::string airwaysFilePath);
 
     static void LoadWaypoints(std::string waypointsFilePath);
@@ -62,9 +91,11 @@ public:
             waypointNetwork = std::make_shared<WaypointNetwork>();
         }
         procedures.clear();
+        procedureNameIndex.clear();
+        procedureAirportIndex.clear();
     }
 
-    static std::multimap<std::string, Procedure> GetProcedures()
+    static const std::vector<Procedure>& GetProcedures()
     {
         std::lock_guard<std::mutex> lock(_mutex);
         return procedures;
@@ -129,7 +160,11 @@ private:
     inline static std::mutex waypointsMutex;
 
     inline static std::unordered_map<std::string, Waypoint> waypoints = {};
-    inline static std::multimap<std::string, Procedure> procedures = {};
+    inline static std::vector<Procedure> procedures = {};
+    inline static std::unordered_map<std::string, std::vector<size_t>> procedureNameIndex
+        = {};
+    inline static std::unordered_map<std::string, std::vector<size_t>>
+        procedureAirportIndex = {};
     inline static std::shared_ptr<AirwayNetwork> airwayNetwork;
     inline static std::shared_ptr<WaypointNetwork> waypointNetwork;
     inline static std::shared_ptr<AirportNetwork> airportNetwork;

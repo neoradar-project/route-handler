@@ -1,38 +1,31 @@
+#pragma once
 #include "Navdata.h"
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
+#include <vector>
 
-/**
- * Extracts procedures and waypoints from an NSE JSON file and loads them into the
- * NavdataObject.
- * @param filePath Path to the NSE JSON file
- */
 static void ExtractNseData(const std::string& filePath)
 {
-    // Check if file exists
     if (!std::filesystem::exists(filePath)) {
         std::cerr << "NSE file does not exist at path: " << filePath << std::endl;
         return;
     }
 
     try {
-        // Read the JSON file
         std::ifstream file(filePath);
         if (!file.is_open()) {
             std::cerr << "Failed to open NSE file: " << filePath << std::endl;
             return;
         }
 
-        // Parse the JSON
         nlohmann::json json;
         file >> json;
         file.close();
 
-        // First, extract and load waypoints from the NSE file
         std::vector<RouteParser::Waypoint> waypoints;
 
-        // Process VORs if available
+        // Process VORs
         if (json.contains("vor") && json["vor"].is_array()) {
             for (const auto& vor : json["vor"]) {
                 try {
@@ -40,13 +33,11 @@ static void ExtractNseData(const std::string& filePath)
                     double lat = vor["lat"].get<double>();
                     double lon = vor["lon"].get<double>();
 
-                    // Try to extract frequency
                     int frequencyHz = 0;
                     if (vor.contains("freq") && !vor["freq"].is_null()) {
                         try {
                             frequencyHz = std::stoi(vor["freq"].get<std::string>());
                         } catch (const std::exception&) {
-                            // Ignore conversion errors
                         }
                     }
 
@@ -59,7 +50,7 @@ static void ExtractNseData(const std::string& filePath)
             }
         }
 
-        // Process NDBs if available
+        // Process NDBs
         if (json.contains("ndb") && json["ndb"].is_array()) {
             for (const auto& ndb : json["ndb"]) {
                 try {
@@ -67,13 +58,11 @@ static void ExtractNseData(const std::string& filePath)
                     double lat = ndb["lat"].get<double>();
                     double lon = ndb["lon"].get<double>();
 
-                    // Try to extract frequency
                     int frequencyHz = 0;
                     if (ndb.contains("freq") && !ndb["freq"].is_null()) {
                         try {
                             frequencyHz = std::stoi(ndb["freq"].get<std::string>());
                         } catch (const std::exception&) {
-                            // Ignore conversion errors
                         }
                     }
 
@@ -86,7 +75,7 @@ static void ExtractNseData(const std::string& filePath)
             }
         }
 
-        // Process FIXes if available
+        // Process FIXes
         if (json.contains("fix") && json["fix"].is_array()) {
             for (const auto& fix : json["fix"]) {
                 try {
@@ -103,7 +92,7 @@ static void ExtractNseData(const std::string& filePath)
             }
         }
 
-        // Process airports if available
+        // Process airports
         if (json.contains("airport") && json["airport"].is_array()) {
             for (const auto& airport : json["airport"]) {
                 try {
@@ -120,19 +109,18 @@ static void ExtractNseData(const std::string& filePath)
             }
         }
 
-        // Load the extracted waypoints into NavdataObject
+        // Load the extracted waypoints
         if (!waypoints.empty()) {
             std::cout << "Loading " << waypoints.size() << " NSE waypoints." << std::endl;
             RouteParser::NavdataObject::LoadNseWaypoints(
                 waypoints, "NSE Provider - " + filePath);
         }
 
-        // Now process procedures if available
-        std::multimap<std::string, RouteParser::Procedure> procedures;
+        // Process procedures
+        std::vector<RouteParser::Procedure> procedures;
 
         if (json.contains("procedure") && json["procedure"].is_array()) {
             for (const auto& obj : json["procedure"]) {
-                // Extract procedure data
                 if (!obj.contains("type") || !obj.contains("icao")
                     || !obj.contains("name") || !obj.contains("points")
                     || !obj["points"].is_array()) {
@@ -145,18 +133,15 @@ static void ExtractNseData(const std::string& filePath)
                 procedure.name = obj["name"].get<std::string>();
                 procedure.icao = obj["icao"].get<std::string>();
 
-                // Set runway if available
                 if (obj.contains("runway") && !obj["runway"].is_null()) {
                     procedure.runway = obj["runway"].get<std::string>();
                 }
 
-                // Set procedure type
                 std::string type = obj["type"].get<std::string>();
                 procedure.type = (type == "SID")
                     ? RouteParser::ProcedureType::PROCEDURE_SID
                     : RouteParser::ProcedureType::PROCEDURE_STAR;
 
-                // Process waypoints
                 auto airportReference = RouteParser::NavdataObject::FindWaypointByType(
                     procedure.icao, WaypointType::AIRPORT);
 
@@ -179,12 +164,11 @@ static void ExtractNseData(const std::string& filePath)
                     }
                 }
 
-                // Add the procedure to the map
-                procedures.emplace(procedure.name, procedure);
+                procedures.push_back(procedure);
             }
         }
 
-        // Set the procedures in NavdataObject
+        // Set the procedures
         if (!procedures.empty()) {
             std::cout << "Loaded " << procedures.size() << " procedures from NSE file."
                       << std::endl;

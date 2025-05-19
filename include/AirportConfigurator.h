@@ -1,7 +1,14 @@
 #pragma once
 #include "Navdata.h"
+#include <iostream>
 #include <map>
+#include <mutex>
+#include <optional>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
+
 namespace RouteParser {
 
 struct AirportRunways {
@@ -40,117 +47,93 @@ public:
         }
         return {};
     }
-
     std::optional<std::pair<std::string, std::optional<Procedure>>> FindBestSID(
         const std::string& icao, const std::vector<std::string>& waypoints) const
     {
-
         if (waypoints.empty()) {
             return std::nullopt;
         }
 
-        // Get active departure runways
         auto depRunways = GetDepartureRunways(icao);
         if (depRunways.empty()) {
             return std::nullopt;
         }
 
-        // Get the first waypoint in the route
+        // Create a set for O(1) runway lookups
+        std::unordered_set<std::string> activeRunways(
+            depRunways.begin(), depRunways.end());
         const auto& firstWaypoint = waypoints[0];
+        const auto& procedures = NavdataObject::GetProcedures();
+        auto airportProcedures = NavdataObject::GetProceduresByAirport(icao);
 
-        // Get all procedures for this airport
-        auto procedures = NavdataObject::GetProcedures();
-        std::vector<Procedure> matchingProcedures;
+        // Find the first matching procedure
+        for (size_t idx : airportProcedures) {
+            const auto& procedure = procedures[idx];
 
-        // Find SIDs for this airport
-        for (auto it = procedures.begin(); it != procedures.end(); ++it) {
-            if (it->second.icao == icao && it->second.type == PROCEDURE_SID) {
-                bool runwayMatch = false;
-                for (const auto& runway : depRunways) {
-                    if (it->second.runway == runway) {
-                        runwayMatch = true;
-                        break;
-                    }
-                }
+            // Fast filters
+            if (procedure.type != PROCEDURE_SID
+                || !activeRunways.count(procedure.runway)) {
+                continue;
+            }
 
-                if (runwayMatch) {
-                    for (const auto& procWpt : it->second.waypoints) {
-                        if (procWpt.getIdentifier() == firstWaypoint) {
-
-                            matchingProcedures.push_back(it->second);
-
-                            break;
-                        }
-                    }
+            // Check if the first waypoint is in this procedure
+            for (const auto& procWpt : procedure.waypoints) {
+                if (procWpt.getIdentifier() == firstWaypoint) {
+                    // Direct return on first match for efficiency
+                    return std::make_pair(procedure.runway, procedure);
                 }
             }
         }
 
-        // If no matches, just return the first active runway
-        if (matchingProcedures.empty()) {
-            return std::make_pair(depRunways[0], std::nullopt);
-        }
-        const Procedure& foundProcedure = matchingProcedures[0];
-        return std::make_pair(foundProcedure.runway, foundProcedure);
+        // No match found
+        return std::make_pair(depRunways[0], std::nullopt);
     }
 
     std::optional<std::pair<std::string, std::optional<Procedure>>> FindBestSTAR(
         const std::string& icao, const std::vector<std::string>& waypoints) const
     {
-
         if (waypoints.empty()) {
             return std::nullopt;
         }
 
-        // Get active arrival runways
         auto arrRunways = GetArrivalRunways(icao);
         if (arrRunways.empty()) {
             return std::nullopt;
         }
 
-        // Get the last waypoint in the route
+        // Create a set for O(1) runway lookups
+        std::unordered_set<std::string> activeRunways(
+            arrRunways.begin(), arrRunways.end());
         const auto& lastWaypoint = waypoints.back();
+        const auto& procedures = NavdataObject::GetProcedures();
+        auto airportProcedures = NavdataObject::GetProceduresByAirport(icao);
 
-        // Get all procedures for this airport
-        auto procedures = NavdataObject::GetProcedures();
-        std::vector<Procedure> matchingProcedures;
+        // Find the first matching procedure
+        for (size_t idx : airportProcedures) {
+            const auto& procedure = procedures[idx];
 
-        // Find STARs for this airport
-        for (auto it = procedures.begin(); it != procedures.end(); ++it) {
-            if (it->second.icao == icao && it->second.type == PROCEDURE_STAR) {
-                // Check if procedure runway is in active arrival runways list
-                bool runwayMatch = false;
-                for (const auto& runway : arrRunways) {
-                    if (it->second.runway == runway) {
-                        runwayMatch = true;
-                        break;
-                    }
-                }
+            // Fast filters
+            if (procedure.type != PROCEDURE_STAR
+                || !activeRunways.count(procedure.runway)) {
+                continue;
+            }
 
-                if (runwayMatch) {
-                    for (const auto& procWpt : it->second.waypoints) {
-                        if (procWpt.getIdentifier() == lastWaypoint) {
-
-                            matchingProcedures.push_back(it->second);
-
-                            break;
-                        }
-                    }
+            // Check if the last waypoint is in this procedure
+            for (const auto& procWpt : procedure.waypoints) {
+                if (procWpt.getIdentifier() == lastWaypoint) {
+                    // Direct return on first match for efficiency
+                    return std::make_pair(procedure.runway, procedure);
                 }
             }
         }
 
-        // If no matches, just return the first active runway
-        if (matchingProcedures.empty()) {
-            return std::make_pair(arrRunways[0], std::nullopt);
-        }
-        const Procedure& foundProcedure = matchingProcedures[0];
-        return std::make_pair(foundProcedure.runway, foundProcedure);
+        // No match found
+        return std::make_pair(arrRunways[0], std::nullopt);
     }
 
 private:
-    // Store active runways per airport
     std::unordered_map<std::string, AirportRunways> runways_;
     mutable std::mutex airportRunwaysMutex_;
 };
+
 } // namespace RouteParser

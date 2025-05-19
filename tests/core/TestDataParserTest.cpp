@@ -24,35 +24,31 @@
 using namespace RouteParser;
 
 // Function to convert a JSON-like procedure data to RouteParser::Procedure
-std::multimap<std::string, RouteParser::Procedure> ConvertToRouteHandlerProcedures(
+std::vector<RouteParser::Procedure> ConvertToRouteHandlerProcedures(
     const std::vector<std::map<std::string,
         std::variant<std::string, std::vector<std::string>>>>& proceduresData)
 {
-    std::multimap<std::string, RouteParser::Procedure> procedures;
+    std::vector<RouteParser::Procedure> procedures;
+    procedures.reserve(proceduresData.size());
 
     for (const auto& obj : proceduresData) {
         RouteParser::Procedure procedure;
 
-        // Extract basic procedure data
         procedure.name = std::get<std::string>(obj.at("name"));
         procedure.icao = std::get<std::string>(obj.at("icao"));
         procedure.runway = std::get<std::string>(obj.at("runway"));
 
-        // Set procedure type
         std::string type = std::get<std::string>(obj.at("type"));
         procedure.type = (type == "SID") ? RouteParser::ProcedureType::PROCEDURE_SID
                                          : RouteParser::ProcedureType::PROCEDURE_STAR;
 
-        // Get airport reference for finding closest waypoints
         auto airportReference = RouteParser::NavdataObject::FindWaypointByType(
             procedure.icao, WaypointType::AIRPORT);
 
-        // Process waypoints
         const auto& points = std::get<std::vector<std::string>>(obj.at("points"));
         for (const auto& pointName : points) {
             auto closestWaypoint = RouteParser::NavdataObject::FindClosestWaypointTo(
                 pointName, airportReference);
-
             if (closestWaypoint.has_value()) {
                 procedure.waypoints.push_back(closestWaypoint.value());
             } else {
@@ -61,13 +57,11 @@ std::multimap<std::string, RouteParser::Procedure> ConvertToRouteHandlerProcedur
             }
         }
 
-        // Add the procedure to the map
-        procedures.emplace(procedure.name, procedure);
+        procedures.push_back(procedure);
     }
 
     return procedures;
 }
-
 // Test function for the procedure
 void TestProcedureConversion()
 {
@@ -87,8 +81,8 @@ void TestProcedureConversion()
     std::cout << "Converted " << procedures.size() << " procedures" << std::endl;
 
     // Print details of each procedure
-    for (const auto& [name, proc] : procedures) {
-        std::cout << "Procedure: " << name << std::endl;
+    for (const auto& proc : procedures) {
+        std::cout << "Procedure: " << proc.name << std::endl;
         std::cout << "  ICAO: " << proc.icao << std::endl;
         std::cout << "  Runway: " << proc.runway << std::endl;
         std::cout << "  Type: "
@@ -159,54 +153,54 @@ RouteHandler TestDataParserTests::handler;
 bool TestDataParserTests::initialized = false;
 
 
- TEST_F(TestDataParserTests, TestDeparture1RouteParsing) {
-     // Parse a route that includes NSE waypoints
+TEST_F(TestDataParserTests, TestDeparture1RouteParsing) {
+    // Parse a route that includes NSE waypoints
 
-     auto parsedRoute = handler.GetParser()->ParseRawRoute(
-        "LANVI DCT BEGAR DCT TRA DCT SUXAN DCT SOVOX DCT KOTOR DCT DOBOT DCT VEBAR DCT NISVA DCT DEDIN DCT AYTEK AYTEK1B/17L", "LFPG", "EDDM");
+    auto parsedRoute = handler.GetParser()->ParseRawRoute(
+    "LANVI DCT BEGAR DCT TRA DCT SUXAN DCT SOVOX DCT KOTOR DCT DOBOT DCT VEBAR DCT NISVA DCT DEDIN DCT AYTEK AYTEK1B/17L", "LFPG", "EDDM");
 
-     std::cout << "Route: " << parsedRoute.rawRoute << std::endl;
-     if (parsedRoute.suggestedSID.has_value()) {
-         std::cout << "Suggested SID: " << parsedRoute.suggestedSID->name
-             << " for runway " << parsedRoute.suggestedDepartureRunway.value_or("NONE")
-             << std::endl;
+    std::cout << "Route: " << parsedRoute.rawRoute << std::endl;
+    if (parsedRoute.suggestedSID.has_value()) {
+        std::cout << "Suggested SID: " << parsedRoute.suggestedSID->name
+            << " for runway " << parsedRoute.suggestedDepartureRunway.value_or("NONE")
+            << std::endl;
 
-     }
+    }
 
 
-     if (parsedRoute.SID.has_value()) {
-         std::cout << "Actual SID: " << parsedRoute.SID->name
-             << " for runway " << parsedRoute.departureRunway.value_or("NONE") <<
-             std::endl;
+    if (parsedRoute.SID.has_value()) {
+        std::cout << "Actual SID: " << parsedRoute.SID->name
+            << " for runway " << parsedRoute.departureRunway.value_or("NONE") <<
+            std::endl;
 
-     }
+    }
+
+}
+
+TEST_F(TestDataParserTests, TestDeparture2RouteParsing) {
+    // Parse a route that includes NSE waypoints
+    auto parsedRoute = handler.GetParser()->ParseRawRoute(
+    "LATRA DCT LAMUT DCT UTUVA/N0447F370 DCT TITVA DCT NOQAS UM728 KOLON DCT LOKDU DCT PELOS DCT IPROM DCT MOROB DCT GIGGI DCT CAR DCT NOLSI/N0416F230 A868 MEDAR", "LFPG", "EDDM");
+    std::cout << "Route: " << parsedRoute.rawRoute << std::endl;
+
+    if (parsedRoute.suggestedSID.has_value()) {
+        std::cout << "Suggested SID: " << parsedRoute.suggestedSID->name
+            << " for runway " << parsedRoute.suggestedDepartureRunway.value_or("NONE")
+            << std::endl;
+
+    }
+
+
+    if (parsedRoute.SID.has_value()) {
+        std::cout << "Actual SID: " << parsedRoute.SID->name
+            << " for runway " << parsedRoute.departureRunway.value_or("NONE") <<
+            std::endl;
+
+    }
 
  }
 
-  TEST_F(TestDataParserTests, TestDeparture2RouteParsing) {
-     // Parse a route that includes NSE waypoints
-     auto parsedRoute = handler.GetParser()->ParseRawRoute(
-        "LATRA DCT LAMUT DCT UTUVA/N0447F370 DCT TITVA DCT NOQAS UM728 KOLON DCT LOKDU DCT PELOS DCT IPROM DCT MOROB DCT GIGGI DCT CAR DCT NOLSI/N0416F230 A868 MEDAR", "LFPG", "EDDM");
-     std::cout << "Route: " << parsedRoute.rawRoute << std::endl;
-
-     if (parsedRoute.suggestedSID.has_value()) {
-         std::cout << "Suggested SID: " << parsedRoute.suggestedSID->name
-             << " for runway " << parsedRoute.suggestedDepartureRunway.value_or("NONE")
-             << std::endl;
-
-     }
-
-
-     if (parsedRoute.SID.has_value()) {
-         std::cout << "Actual SID: " << parsedRoute.SID->name
-             << " for runway " << parsedRoute.departureRunway.value_or("NONE") <<
-             std::endl;
-
-     }
-
- }
-
-TEST_F(TestDataParserTests, TestArrivalRouteParsing) {
+TEST_F(TestDataParserTests, TestArrivalRouteParsing1) {
     auto parsedRoute = handler.GetParser()->ParseRawRoute("ETREK UN854 LOGNI DCT MOKIP DCT ARFOZ UN854 TINIL ", "KMCO", "LFPG");
      std::cout << "Route: " << parsedRoute.rawRoute << std::endl;
 
@@ -215,12 +209,12 @@ TEST_F(TestDataParserTests, TestArrivalRouteParsing) {
            << " for runway " << parsedRoute.suggestedArrivalRunway.value_or("NONE") <<
            std::endl;
 
-    //    for (auto& waypoint : parsedRoute.suggestedSTAR.value().waypoints) {
-    //        std::cout << "    - " << waypoint.getIdentifier()
-    //            << " (Lat: " << waypoint.getPosition().latitude().degrees()
-    //            << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
-    //            << std::endl;
-    //    }
+       /* for (auto& waypoint : parsedRoute.suggestedSTAR.value().waypoints) {
+            std::cout << "    - " << waypoint.getIdentifier()
+                << " (Lat: " << waypoint.getPosition().latitude().degrees()
+                << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
+                << std::endl;
+        }*/
    }
 
    if (parsedRoute.STAR.has_value()) {
@@ -228,13 +222,45 @@ TEST_F(TestDataParserTests, TestArrivalRouteParsing) {
            << " for runway " << parsedRoute.arrivalRunway.value_or("NONE") <<
            std::endl;
 
-    //    for (auto& waypoint : parsedRoute.STAR.value().waypoints) {
-    //        std::cout << "    - " << waypoint.getIdentifier()
-    //            << " (Lat: " << waypoint.getPosition().latitude().degrees()
-    //            << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
-    //            << std::endl;
-    //    }
+      /*  for (auto& waypoint : parsedRoute.STAR.value().waypoints) {
+            std::cout << "    - " << waypoint.getIdentifier()
+                << " (Lat: " << waypoint.getPosition().latitude().degrees()
+                << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
+                << std::endl;
+        }*/
    }
+}
+
+TEST_F(TestDataParserTests, TestArrivalRouteParsing2)
+{
+    auto parsedRoute = handler.GetParser()->ParseRawRoute(
+        "SOBRA2L/18 SOBRA Y180 DIK UN857 TOLVU/N0356F230 UN857 RAPOR/N0363F240 UZ157 VEDUS", "KLAX", "LFPG");
+    std::cout << "Route: " << parsedRoute.rawRoute << std::endl;
+
+    if (parsedRoute.suggestedSTAR.has_value()) {
+        std::cout << "Suggested STAR: " << parsedRoute.suggestedSTAR->name
+                  << " for runway " << parsedRoute.suggestedArrivalRunway.value_or("NONE")
+                  << std::endl;
+
+        /*for (auto& waypoint : parsedRoute.suggestedSTAR.value().waypoints) {
+            std::cout << "    - " << waypoint.getIdentifier()
+                      << " (Lat: " << waypoint.getPosition().latitude().degrees()
+                      << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
+                      << std::endl;
+        }*/
+    }
+
+    if (parsedRoute.STAR.has_value()) {
+        std::cout << "Actual STAR: " << parsedRoute.STAR->name << " for runway "
+                  << parsedRoute.arrivalRunway.value_or("NONE") << std::endl;
+
+       /* for (auto& waypoint : parsedRoute.STAR.value().waypoints) {
+            std::cout << "    - " << waypoint.getIdentifier()
+                      << " (Lat: " << waypoint.getPosition().latitude().degrees()
+                      << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
+                      << std::endl;
+        }*/
+    }
 }
 
 } // namespace RouteHandlerTests
