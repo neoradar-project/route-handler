@@ -126,8 +126,8 @@ protected:
 
             std::unordered_map<std::string, RouteParser::AirportRunways> airportRunways;
             airportRunways["LFPG"] = {
-                { "08R" }, // Departure runways
-                { "08R" } // Arrival runways
+                { "09R", "08L"}, // Departure runways
+                { "09L", "08R" } // Arrival runways
             };
             handler.GetAirportConfigurator()->UpdateAirportRunways(airportRunways);
 
@@ -141,7 +141,7 @@ protected:
             // Now bootstrap the handler with our extended procedures list
             handler.Bootstrap(logFunc, "testdata/navdata.db", {}, "testdata/gng.db");
 
-            // ExtractNseData("testdata/nse-lfxx.json");
+            ExtractNseData("testdata/nse-lfxx.json");
 
             initialized = true;
         }
@@ -158,322 +158,83 @@ protected:
 RouteHandler TestDataParserTests::handler;
 bool TestDataParserTests::initialized = false;
 
-// Test that NSE waypoints are correctly loaded and can be found
-// TEST_F(TestDataParserTests, TestNseWaypointsLoaded) {
-//    // Check that we can find the NSE waypoints
-//    auto det = NavdataObject::FindWaypoint("DET");
-//    ASSERT_TRUE(det.has_value());
-//    EXPECT_EQ(det->getType(), WaypointType::VOR);
-//    EXPECT_NEAR(det->getPosition().latitude().degrees(), 51.30400277777778, 0.0001);
 
-//    auto rw27l = NavdataObject::FindWaypoint("RW27L");
-//    ASSERT_TRUE(rw27l.has_value());
-//    EXPECT_EQ(rw27l->getType(), WaypointType::FIX);
-//    EXPECT_NEAR(rw27l->getPosition().latitude().degrees(), 51.46495277777779, 0.0001);
+ TEST_F(TestDataParserTests, TestDeparture1RouteParsing) {
+     // Parse a route that includes NSE waypoints
 
-//    // Test that we can find points from the ALESO1H STAR
-//    auto cf09l = NavdataObject::FindWaypoint("CF09L");
-//    ASSERT_TRUE(cf09l.has_value());
-//    EXPECT_NEAR(cf09l->getPosition().longitude().degrees(), -0.7514805555555557,
-//    0.0001);
-//}
+     auto parsedRoute = handler.GetParser()->ParseRawRoute(
+        "LANVI DCT BEGAR DCT TRA DCT SUXAN DCT SOVOX DCT KOTOR DCT DOBOT DCT VEBAR DCT NISVA DCT DEDIN DCT AYTEK AYTEK1B/17L", "LFPG", "EDDM");
 
-// Test that NSE procedures are correctly loaded
-// TEST_F(TestDataParserTests, TestNseProceduresLoaded) {
-//    auto procedures = NavdataObject::GetProcedures();
+     std::cout << "Route: " << parsedRoute.rawRoute << std::endl;
+     if (parsedRoute.suggestedSID.has_value()) {
+         std::cout << "Suggested SID: " << parsedRoute.suggestedSID->name
+             << " for runway " << parsedRoute.suggestedDepartureRunway.value_or("NONE")
+             << std::endl;
 
-//    // Check DET1J SID
-//    auto det1j_range = procedures.equal_range("DET1J");
-//    bool found_det1j = false;
-//    for (auto it = det1j_range.first; it != det1j_range.second; ++it) {
-//        if (it->second.icao == "EGLL" && it->second.runway == "09R") {
-//            found_det1j = true;
-//            EXPECT_EQ(it->second.waypoints.size(), 8);
-//            break;
-//        }
-//    }
-//    EXPECT_TRUE(found_det1j);
+     }
 
-//    // Check ALESO1H STAR
-//    auto aleso1h_range = procedures.equal_range("ALESO1H");
-//    bool found_aleso1h = false;
-//    for (auto it = aleso1h_range.first; it != aleso1h_range.second; ++it) {
-//        if (it->second.icao == "EGLL" && it->second.runway == "09L") {
-//            found_aleso1h = true;
-//            EXPECT_EQ(it->second.waypoints.size(), 11);
-//            break;
-//        }
-//    }
-//    EXPECT_TRUE(found_aleso1h);
-//}
 
-// Test parsing a route with NSE waypoints
-//  TEST_F(TestDataParserTests, TestRouteParsingWithNseWaypoints) {
-//      // Parse a route that includes NSE waypoints
-//      auto parsedRoute = handler.GetParser()->ParseRawRoute("EGLL/09R DET2J/09L DET L6
-//      DVR", "EGLL", "EDDM");
+     if (parsedRoute.SID.has_value()) {
+         std::cout << "Actual SID: " << parsedRoute.SID->name
+             << " for runway " << parsedRoute.departureRunway.value_or("NONE") <<
+             std::endl;
 
-//      if (parsedRoute.suggestedSID.has_value()) {
-//          std::cout << "Suggested SID: " << parsedRoute.suggestedSID->name
-//              << " for runway " << parsedRoute.suggestedDepartureRunway.value_or("NONE")
-//              << std::endl;
+     }
 
-//          for (auto& waypoint : parsedRoute.suggestedSID.value().waypoints) {
-//              std::cout << "    - " << waypoint.getIdentifier()
-//                  << " (Lat: " << waypoint.getPosition().latitude().degrees()
-//                  << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
-//                  << std::endl;
-//          }
-//      }
+ }
 
-//      // Check for parsing errors
-//      PRINT_ALL_PARSING_ERRORS(parsedRoute);
+  TEST_F(TestDataParserTests, TestDeparture2RouteParsing) {
+     // Parse a route that includes NSE waypoints
+     auto parsedRoute = handler.GetParser()->ParseRawRoute(
+        "LATRA DCT LAMUT DCT UTUVA/N0447F370 DCT TITVA DCT NOQAS UM728 KOLON DCT LOKDU DCT PELOS DCT IPROM DCT MOROB DCT GIGGI DCT CAR DCT NOLSI/N0416F230 A868 MEDAR", "LFPG", "EDDM");
+     std::cout << "Route: " << parsedRoute.rawRoute << std::endl;
 
-// std::cout << "Parsed Route Segments: " << parsedRoute.rawRoute << std::endl;
+     if (parsedRoute.suggestedSID.has_value()) {
+         std::cout << "Suggested SID: " << parsedRoute.suggestedSID->name
+             << " for runway " << parsedRoute.suggestedDepartureRunway.value_or("NONE")
+             << std::endl;
 
-//      if (parsedRoute.SID.has_value()) {
-//          std::cout << "Actual SID: " << parsedRoute.SID->name
-//              << " for runway " << parsedRoute.departureRunway.value_or("NONE") <<
-//              std::endl;
+     }
 
-//          for (auto& waypoint : parsedRoute.SID.value().waypoints) {
-//              std::cout << "    - " << waypoint.getIdentifier()
-//                  << " (Lat: " << waypoint.getPosition().latitude().degrees()
-//                  << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
-//                  << std::endl;
-//          }
-//      }
 
-//      // Print the parsed route details for visualization
-//      std::cout << "Parsed Route: " << parsedRoute.rawRoute << std::endl;
-//      for (const auto& segment : parsedRoute.explicitSegments) {
-//          std::cout << "Segment: " << segment.from.getIdentifier() << " to "
-//              << segment.to.getIdentifier() << " via " << segment.airway << std::endl;
-//      }
-//  }
+     if (parsedRoute.SID.has_value()) {
+         std::cout << "Actual SID: " << parsedRoute.SID->name
+             << " for runway " << parsedRoute.departureRunway.value_or("NONE") <<
+             std::endl;
 
-// TEST_F(TestDataParserTests, TestArrivalRouteParsing) {
-//     auto parsedRoute = handler.GetParser()->ParseRawRoute("PG270 PG276 OPALE KESAX
-//     DIMAL ALESO EGLL/09R ALESO1H/09R", "LFPG", "EGLL");
+     }
 
-//    if (parsedRoute.suggestedSTAR.has_value()) {
-//        std::cout << "Suggested STAR: " << parsedRoute.suggestedSTAR->name
-//            << " for runway " << parsedRoute.suggestedArrivalRunway.value_or("NONE") <<
-//            std::endl;
+ }
 
-//        for (auto& waypoint : parsedRoute.suggestedSTAR.value().waypoints) {
-//            std::cout << "    - " << waypoint.getIdentifier()
-//                << " (Lat: " << waypoint.getPosition().latitude().degrees()
-//                << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
-//                << std::endl;
-//        }
-//    }
+TEST_F(TestDataParserTests, TestArrivalRouteParsing) {
+    auto parsedRoute = handler.GetParser()->ParseRawRoute("ETREK UN854 LOGNI DCT MOKIP DCT ARFOZ UN854 TINIL ", "KMCO", "LFPG");
+     std::cout << "Route: " << parsedRoute.rawRoute << std::endl;
 
-//    if (parsedRoute.STAR.has_value()) {
-//        std::cout << "Actual STAR: " << parsedRoute.STAR->name
-//            << " for runway " << parsedRoute.arrivalRunway.value_or("NONE") <<
-//            std::endl;
+   if (parsedRoute.suggestedSTAR.has_value()) {
+       std::cout << "Suggested STAR: " << parsedRoute.suggestedSTAR->name
+           << " for runway " << parsedRoute.suggestedArrivalRunway.value_or("NONE") <<
+           std::endl;
 
-//        for (auto& waypoint : parsedRoute.STAR.value().waypoints) {
-//            std::cout << "    - " << waypoint.getIdentifier()
-//                << " (Lat: " << waypoint.getPosition().latitude().degrees()
-//                << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
-//                << std::endl;
-//        }
-//    }
+    //    for (auto& waypoint : parsedRoute.suggestedSTAR.value().waypoints) {
+    //        std::cout << "    - " << waypoint.getIdentifier()
+    //            << " (Lat: " << waypoint.getPosition().latitude().degrees()
+    //            << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
+    //            << std::endl;
+    //    }
+   }
 
-//    // Check for parsing errors
-//    PRINT_ALL_PARSING_ERRORS(parsedRoute);
+   if (parsedRoute.STAR.has_value()) {
+       std::cout << "Actual STAR: " << parsedRoute.STAR->name
+           << " for runway " << parsedRoute.arrivalRunway.value_or("NONE") <<
+           std::endl;
 
-//    std::cout << "Parsed Route Segments: " << parsedRoute.rawRoute << std::endl;
-//    for (const auto& segment : parsedRoute.segments) {
-//        std::cout << "Segment: " << segment.from.getIdentifier() << " to "
-//            << segment.to.getIdentifier() << " via " << segment.airway << std::endl;
-//    }
-//    // Print the parsed route details for visualization
-//    std::cout << "Parsed Explicit Route Segments: " << parsedRoute.rawRoute <<
-//    std::endl; for (const auto& segment : parsedRoute.explicitSegments) {
-//        std::cout << "Segment: " << segment.from.getIdentifier() << " to "
-//            << segment.to.getIdentifier() << " via " << segment.airway << std::endl;
-//    }
-//}
-
-// TEST_F(TestDataParserTests, TestArrivalRouteParsing) {
-//     auto parsedRoute = handler.GetParser()->ParseRawRoute("CELTK7 CELTK DCT FRILL DCT
-//     TUSKY N321A ELSIR/M083F390 DCT 50N050W 51N040W 51N030W 52N020W DCT LIMRI DCT XETBO
-//     DCT ARKIL/N0476F390 DCT ANNET UM25 INGOR/N0433F280 UM25 LUKIP LUKIP9EXMOPAR7E/08R",
-//     "KBOS", "LFPG");
-
-//    if (parsedRoute.suggestedSTAR.has_value()) {
-//        std::cout << "Suggested STAR: " << parsedRoute.suggestedSTAR->name
-//            << " for runway " << parsedRoute.suggestedArrivalRunway.value_or("NONE") <<
-//            std::endl;
-
-//        for (auto& waypoint : parsedRoute.suggestedSTAR.value().waypoints) {
-//            std::cout << "    - " << waypoint.getIdentifier()
-//                << " (Lat: " << waypoint.getPosition().latitude().degrees()
-//                << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
-//                << std::endl;
-//        }
-//    }
-
-//    if (parsedRoute.STAR.has_value()) {
-//        std::cout << "Actual STAR: " << parsedRoute.STAR->name
-//            << " for runway " << parsedRoute.arrivalRunway.value_or("NONE") <<
-//            std::endl;
-
-//        for (auto& waypoint : parsedRoute.STAR.value().waypoints) {
-//            std::cout << "    - " << waypoint.getIdentifier()
-//                << " (Lat: " << waypoint.getPosition().latitude().degrees()
-//                << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
-//                << std::endl;
-//        }
-//    }
-
-//    // Check for parsing errors
-//    PRINT_ALL_PARSING_ERRORS(parsedRoute);
-
-//    std::cout << "Parsed Route Segments: " << parsedRoute.rawRoute << std::endl;
-//    for (const auto& segment : parsedRoute.segments) {
-//        std::cout << "Segment: " << segment.from.getIdentifier() << " to "
-//            << segment.to.getIdentifier() << " via " << segment.airway << std::endl;
-//    }
-//    // Print the parsed route details for visualization
-//    std::cout << "Parsed Explicit Route Segments: " << parsedRoute.rawRoute <<
-//    std::endl; for (const auto& segment : parsedRoute.explicitSegments) {
-//        std::cout << "Segment: " << segment.from.getIdentifier() << " to "
-//            << segment.to.getIdentifier() << " via " << segment.airway << std::endl;
-//    }
-//}
-
-TEST_F(TestDataParserTests, TestArrivalRouteParsing)
-{
-    auto parsedRoute = handler.GetParser()->ParseRawRoute(
-        "SOBRA2L/18 SOBRA Y180 DIK UN857 TOLVU/N0388F230 UN857 RAPOR/N0394F240 UZ157 "
-        "VEDUS",
-        "KBOS", "LFPG");
-
-    if (parsedRoute.suggestedSTAR.has_value()) {
-        std::cout << "Suggested STAR: " << parsedRoute.suggestedSTAR->name
-                  << " for runway " << parsedRoute.suggestedArrivalRunway.value_or("NONE")
-                  << std::endl;
-
-        for (auto& waypoint : parsedRoute.suggestedSTAR.value().waypoints) {
-            std::cout << "    - " << waypoint.getIdentifier()
-                      << " (Lat: " << waypoint.getPosition().latitude().degrees()
-                      << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
-                      << std::endl;
-        }
-    }
-
-    if (parsedRoute.STAR.has_value()) {
-        std::cout << "Actual STAR: " << parsedRoute.STAR->name << " for runway "
-                  << parsedRoute.arrivalRunway.value_or("NONE") << std::endl;
-
-        for (auto& waypoint : parsedRoute.STAR.value().waypoints) {
-            std::cout << "    - " << waypoint.getIdentifier()
-                      << " (Lat: " << waypoint.getPosition().latitude().degrees()
-                      << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
-                      << std::endl;
-        }
-    }
-
-    // Check for parsing errors
-    PRINT_ALL_PARSING_ERRORS(parsedRoute);
-
-    std::cout << "Parsed Route Segments: " << parsedRoute.rawRoute << std::endl;
-    for (const auto& segment : parsedRoute.segments) {
-        std::cout << "Segment: " << segment.from.getIdentifier() << " to "
-                  << segment.to.getIdentifier() << " via " << segment.airway << std::endl;
-    }
-    // Print the parsed route details for visualization
-    std::cout << "Parsed Explicit Route Segments: " << parsedRoute.rawRoute << std::endl;
-    for (const auto& segment : parsedRoute.explicitSegments) {
-        std::cout << "Segment: " << segment.from.getIdentifier() << " to "
-                  << segment.to.getIdentifier() << " via " << segment.airway << std::endl;
-    }
-}
-
-// TEST_F(TestDataParserTests, TestExplicitSegmentsGenerated) {
-//     // Parse a route that ends with waypoints on a potential STAR
-//     auto parsedRoute = handler.GetParser()->ParseRawRoute(
-//         "DET Q70 KOK", "EGLL", "LFPG");
-
-//     // Check for parsing errors and print them
-//     PRINT_ALL_PARSING_ERRORS(parsedRoute);
-
-//     // The explicit segments should contain a complete route from LFPG to EGLL
-//     EXPECT_FALSE(parsedRoute.explicitSegments.empty()) << "Explicit segments should be
-//     generated"; EXPECT_FALSE(parsedRoute.explicitWaypoints.empty()) << "Explicit
-//     waypoints should be generated";
-
-//     std::cout << "\nExplicit Route Waypoints (" << parsedRoute.explicitWaypoints.size()
-//     << "):" << std::endl; for (const auto& waypoint : parsedRoute.explicitWaypoints) {
-//         std::cout << "  - " << waypoint.getIdentifier() << std::endl;
-//     }
-
-//     std::cout << "\nExplicit Route Segments (" << parsedRoute.explicitSegments.size()
-//     << "):" << std::endl; for (const auto& segment : parsedRoute.explicitSegments) {
-//         std::cout << "  " << segment.from.getIdentifier() << " -> "
-//             << segment.to.getIdentifier() << " via " << segment.airway << std::endl;
-//     }
-
-//     //// Check that we have a connection to the destination airport
-//     //const auto& lastSegment = parsedRoute.explicitSegments.back();
-//     //EXPECT_EQ(lastSegment.to.getIdentifier(), "EGLL")
-//     //    << "Last segment should connect to destination airport";
-
-//     //// Check if STAR waypoints were included
-//     //bool foundStarWaypoints = false;
-//     //for (const auto& waypoint : parsedRoute.explicitWaypoints) {
-//     //    if (waypoint.getIdentifier() == "BIG") {
-//     //        foundStarWaypoints = true;
-//     //        break;
-//     //    }
-//     //}
-
-//     //EXPECT_TRUE(foundStarWaypoints)
-//     //    << "STAR waypoints should be included in explicit waypoints";
-
-//     //// Make sure we have origin and destination airports in the explicit waypoints
-//     //bool hasOrigin = false;
-//     //bool hasDestination = false;
-
-//     //for (const auto& waypoint : parsedRoute.explicitWaypoints) {
-//     //    if (waypoint.getIdentifier() == "LFPG") {
-//     //        hasOrigin = true;
-//     //    }
-//     //    if (waypoint.getIdentifier() == "EGLL") {
-//     //        hasDestination = true;
-//     //    }
-//     //}
-
-// /*     EXPECT_TRUE(hasOrigin) << "Origin airport should be in explicit waypoints";
-//     EXPECT_TRUE(hasDestination) << "Destination airport should be in explicit
-//     waypoints";*/
-// }
-
-TEST_F(TestDataParserTests, BasicRoute)
-{
-    auto parsedRoute = handler.GetParser()->ParseRawRoute(
-        "BPK7F/27R Q295 SOMVA L938 MAVAS DOSUR P729 TUDLO ", "EGLL", "EKCH");
-
-    std::ostringstream oss;
-    for (const auto& segments : parsedRoute.segments) {
-
-        oss << "-----------------------------------" << std::endl;
-        oss << "From: " << segments.from.getIdentifier() << " Lat "
-            << segments.from.getPosition().latitude().degrees() << " Lon "
-            << segments.from.getPosition().longitude().degrees() << std::endl;
-        oss << "To: " << segments.to.getIdentifier() << " Lat "
-            << segments.to.getPosition().latitude().degrees() << " Lon "
-            << segments.to.getPosition().longitude().degrees() << std::endl;
-        oss << "Airway: " << segments.airway << std::endl;
-        oss << "-----------------------------------" << std::endl;
-    }
-    std::cout << oss.str();
-
-    PRINT_ALL_PARSING_ERRORS(parsedRoute);
+    //    for (auto& waypoint : parsedRoute.STAR.value().waypoints) {
+    //        std::cout << "    - " << waypoint.getIdentifier()
+    //            << " (Lat: " << waypoint.getPosition().latitude().degrees()
+    //            << ", Lon: " << waypoint.getPosition().longitude().degrees() << ")"
+    //            << std::endl;
+    //    }
+   }
 }
 
 } // namespace RouteHandlerTests
