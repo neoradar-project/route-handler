@@ -779,7 +779,7 @@ bool RouteParser::ParserHandler::ParseLatLon(ParsedRoute& parsedRoute, int index
             decimalDegreesLon *= -1;
         }
         erkir::spherical::Point point(decimalDegreesLat, decimalDegreesLon);
-        const Waypoint waypoint = Waypoint{ LATLON, token, point, LATLON };
+        const Waypoint waypoint = Waypoint{ LATLON, token, token,point, LATLON };
 
         std::optional<RouteWaypoint::PlannedAltitudeAndSpeed> plannedAltAndSpd
             = std::nullopt;

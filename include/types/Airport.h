@@ -58,7 +58,7 @@ namespace RouteParser
         // toWaypoint method
         inline Waypoint toWaypoint() const
         {
-            return Waypoint(WaypointType::AIRPORT, ident_, position_, 0);
+            return Waypoint(WaypointType::AIRPORT, ident_, name_, position_, 0);
         }
 
     private:

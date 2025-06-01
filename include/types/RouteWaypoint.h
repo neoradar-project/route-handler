@@ -25,7 +25,7 @@ public:
         erkir::spherical::Point position, int frequencyHz = 0,
         FlightRule flightRule = IFR,
         std::optional<PlannedAltitudeAndSpeed> plannedPosition = std::nullopt)
-        : Waypoint(type, identifier, position, frequencyHz)
+        : Waypoint(type, identifier, identifier, position, frequencyHz)
     {
         m_plannedPosition = plannedPosition; // Changed to m_ prefix
         m_flightRule = flightRule; // Changed to m_ prefix

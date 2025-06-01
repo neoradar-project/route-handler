@@ -151,7 +151,7 @@ public:
 
         auto [newIt, inserted] = waypoints.try_emplace(std::string(identifier),
             Utils::GetWaypointTypeByIdentifier(std::string(identifier)),
-            std::string(identifier), position);
+            std::string(identifier),std::string(identifier), position);
         return newIt->second;
     }
 

@@ -286,7 +286,7 @@ namespace RouteParser
                     double lat = query.getColumn(1).isNull() ? 0.0 : query.getColumn(1).getDouble();
                     double lon = query.getColumn(2).isNull() ? 0.0 : query.getColumn(2).getDouble();
 
-                    results.emplace_back(Utils::GetWaypointTypeByIdentifier(id), id, erkir::spherical::Point(lat, lon));
+                    results.emplace_back(Utils::GetWaypointTypeByIdentifier(id), id, id,  erkir::spherical::Point(lat, lon));
                 }
             }
             catch (const SQLite::Exception &e)
@@ -338,7 +338,7 @@ namespace RouteParser
                     double lat = query.getColumn(1).isNull() ? 0.0 : query.getColumn(1).getDouble();
                     double lon = query.getColumn(2).isNull() ? 0.0 : query.getColumn(2).getDouble();
 
-                    return Waypoint(Utils::GetWaypointTypeByIdentifier(id), id, erkir::spherical::Point(lat, lon));
+                    return Waypoint(Utils::GetWaypointTypeByIdentifier(id), id,id,  erkir::spherical::Point(lat, lon));
                 }
             }
             catch (const SQLite::Exception &e)
@@ -443,7 +443,7 @@ namespace RouteParser
                     double lat = query.getColumn(3).isNull() ? 0.0 : query.getColumn(3).getDouble();
                     double lon = query.getColumn(4).isNull() ? 0.0 : query.getColumn(4).getDouble();
 
-                    results.emplace_back(Utils::GetWaypointTypeByTypeString(id), id,
+                    results.emplace_back(Utils::GetWaypointTypeByTypeString(id), id,id,
                                          erkir::spherical::Point(lat, lon), frequency * 1000);
                 }
             }
@@ -498,7 +498,7 @@ namespace RouteParser
                     double lat = query.getColumn(3).isNull() ? 0.0 : query.getColumn(3).getDouble();
                     double lon = query.getColumn(4).isNull() ? 0.0 : query.getColumn(4).getDouble();
 
-                    return Waypoint(Utils::GetWaypointTypeByTypeString(id), id,
+                    return Waypoint(Utils::GetWaypointTypeByTypeString(id), id,id,
                                     erkir::spherical::Point(lat, lon), frequency * 1000);
                 }
             }

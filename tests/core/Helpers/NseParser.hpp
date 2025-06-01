@@ -42,7 +42,7 @@ static void ExtractNseData(const std::string& filePath)
                     }
 
                     waypoints.push_back(
-                        RouteParser::Waypoint(RouteParser::WaypointType::VOR, name,
+                        RouteParser::Waypoint(RouteParser::WaypointType::VOR, name, name,
                             erkir::spherical::Point(lat, lon), frequencyHz));
                 } catch (const std::exception& e) {
                     std::cerr << "Error processing VOR: " << e.what() << std::endl;
@@ -67,7 +67,7 @@ static void ExtractNseData(const std::string& filePath)
                     }
 
                     waypoints.push_back(
-                        RouteParser::Waypoint(RouteParser::WaypointType::NDB, name,
+                        RouteParser::Waypoint(RouteParser::WaypointType::NDB, name,name,
                             erkir::spherical::Point(lat, lon), frequencyHz));
                 } catch (const std::exception& e) {
                     std::cerr << "Error processing NDB: " << e.what() << std::endl;
@@ -84,7 +84,7 @@ static void ExtractNseData(const std::string& filePath)
                     double lon = fix["lon"].get<double>();
 
                     waypoints.push_back(
-                        RouteParser::Waypoint(RouteParser::WaypointType::FIX, name,
+                        RouteParser::Waypoint(RouteParser::WaypointType::FIX, name,name,
                             erkir::spherical::Point(lat, lon)));
                 } catch (const std::exception& e) {
                     std::cerr << "Error processing FIX: " << e.what() << std::endl;
@@ -101,7 +101,7 @@ static void ExtractNseData(const std::string& filePath)
                     double lon = airport["lon"].get<double>();
 
                     waypoints.push_back(
-                        RouteParser::Waypoint(RouteParser::WaypointType::AIRPORT, name,
+                        RouteParser::Waypoint(RouteParser::WaypointType::AIRPORT, name,name,
                             erkir::spherical::Point(lat, lon)));
                 } catch (const std::exception& e) {
                     std::cerr << "Error processing airport: " << e.what() << std::endl;
