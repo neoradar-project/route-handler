@@ -162,7 +162,7 @@ public:
         std::string procedureToken = parts[0];
 
         bool isProcedurePattern = std::regex_match(
-            procedureToken, std::regex(R"([A-Z]{3,5}\d[A-Z]?(?:.*)?(?:\/\d{2}[LRC]?)?)"));
+            procedureToken, std::regex(R"([A-Z]{1,5}\d[A-Z]?(?:.*)?(?:\/\d{2}[LRC]?)?)"));
 
         bool isAirportPattern = (procedureToken.length() == 4
             && std::all_of(procedureToken.begin(), procedureToken.end(),

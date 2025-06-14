@@ -120,8 +120,8 @@ protected:
 
             std::unordered_map<std::string, RouteParser::AirportRunways> airportRunways;
             airportRunways["LFPG"] = {
-                { "09R", "08L"}, // Departure runways
-                { "09L", "08R" } // Arrival runways
+                { "26R"}, // Departure runways
+                { "26R" } // Arrival runways
             };
             handler.GetAirportConfigurator()->UpdateAirportRunways(airportRunways);
 
@@ -157,7 +157,7 @@ TEST_F(TestDataParserTests, TestDeparture1RouteParsing) {
     // Parse a route that includes NSE waypoints
 
     auto parsedRoute = handler.GetParser()->ParseRawRoute(
-    "LANVI DCT BEGAR DCT TRA DCT SUXAN DCT SOVOX DCT KOTOR DCT DOBOT DCT VEBAR DCT NISVA DCT DEDIN DCT AYTEK AYTEK1B/17L", "LFPG", "EDDM");
+    "PO6B/26R PG822 DCT QXCEL DCT PG824 DCT PG825 DCT 4837N00249E 4844N00251E DCT", "LFPG", "LFPO");
 
     std::cout << "Route: " << parsedRoute.rawRoute << std::endl;
     if (parsedRoute.suggestedSID.has_value()) {

@@ -521,7 +521,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
         bool isPotentialStar = false;
         if (token.find('/') != std::string::npos) {
             // Check if this matches a PROCEDURE/RUNWAY or AIRPORT/RUNWAY pattern
-            std::regex procedureOrAirportPattern(R"(\b(?:[A-Z]{5}\d[A-Z]?.*?|[A-Z]{4})\/\d{2}[LRC]?)");
+            std::regex procedureOrAirportPattern(R"(\b(?:[A-Z]{1,5}\d[A-Z]?.*?|[A-Z]{4})\/\d{2}[LRC]?)");
             isPotentialStar = std::regex_match(token, procedureOrAirportPattern);
         }
 
@@ -600,7 +600,7 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
 
             // Add tokens that look like procedures
             if (token.find('/') != std::string::npos ||
-                std::regex_match(token, std::regex(R"([A-Z]{5}\d[A-Z]?(?:.*)?(?:\/\d{2}[LRC]?)?)"))) {
+                std::regex_match(token, std::regex(R"([A-Z]{1,5}\d[A-Z]?(?:.*)?(?:\/\d{2}[LRC]?)?)"))) {
                 starCandidates.push_back({ i, token });
             }
         }

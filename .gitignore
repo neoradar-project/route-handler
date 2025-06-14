@@ -12,6 +12,7 @@ _deps
 CMakeUserPresets.json
 
 # Prerequisites
+.idea
 .vs
 out
 *.d
