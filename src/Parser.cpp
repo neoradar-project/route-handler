@@ -682,43 +682,43 @@ ParsedRoute ParserHandler::ParseRawRoute(std::string route, std::string origin,
     }
 
     // Remove any overridden tokens from the raw route
-    for (const auto& tokenToRemove : tokensToRemove) {
-        std::string& rawRoute = parsedRoute.rawRoute;
-        size_t pos = rawRoute.find(tokenToRemove);
-        if (pos != std::string::npos) {
-            // Remove the token and any adjacent space
-            if (pos > 0 && rawRoute[pos - 1] == ' ') {
-                // There's a space before the token
-                rawRoute.erase(pos - 1, tokenToRemove.length() + 1);
-            }
-            else if (pos + tokenToRemove.length() < rawRoute.length() &&
-                rawRoute[pos + tokenToRemove.length()] == ' ') {
-                // There's a space after the token
-                rawRoute.erase(pos, tokenToRemove.length() + 1);
-            }
-            else {
-                // No adjacent space
-                rawRoute.erase(pos, tokenToRemove.length());
-            }
-        }
-
-        // Clean up any double spaces
-        while (rawRoute.find("  ") != std::string::npos) {
-            rawRoute.replace(rawRoute.find("  "), 2, " ");
-        }
-
-        // Trim leading/trailing spaces
-        if (!rawRoute.empty() && rawRoute.front() == ' ') {
-            rawRoute.erase(0, 1);
-        }
-        if (!rawRoute.empty() && rawRoute.back() == ' ') {
-            rawRoute.pop_back();
-        }
-    }
-
-    if (!parsedRoute.waypoints.empty()) {
-        CleanupUnrecognizedPatterns(parsedRoute, origin, destination);
-    }
+    // for (const auto& tokenToRemove : tokensToRemove) {
+    //     std::string& rawRoute = parsedRoute.rawRoute;
+    //     size_t pos = rawRoute.find(tokenToRemove);
+    //     if (pos != std::string::npos) {
+    //         // Remove the token and any adjacent space
+    //         if (pos > 0 && rawRoute[pos - 1] == ' ') {
+    //             // There's a space before the token
+    //             rawRoute.erase(pos - 1, tokenToRemove.length() + 1);
+    //         }
+    //         else if (pos + tokenToRemove.length() < rawRoute.length() &&
+    //             rawRoute[pos + tokenToRemove.length()] == ' ') {
+    //             // There's a space after the token
+    //             rawRoute.erase(pos, tokenToRemove.length() + 1);
+    //         }
+    //         else {
+    //             // No adjacent space
+    //             rawRoute.erase(pos, tokenToRemove.length());
+    //         }
+    //     }
+    //
+    //     // Clean up any double spaces
+    //     while (rawRoute.find("  ") != std::string::npos) {
+    //         rawRoute.replace(rawRoute.find("  "), 2, " ");
+    //     }
+    //
+    //     // Trim leading/trailing spaces
+    //     if (!rawRoute.empty() && rawRoute.front() == ' ') {
+    //         rawRoute.erase(0, 1);
+    //     }
+    //     if (!rawRoute.empty() && rawRoute.back() == ' ') {
+    //         rawRoute.pop_back();
+    //     }
+    // }
+    //
+    // if (!parsedRoute.waypoints.empty()) {
+    //     CleanupUnrecognizedPatterns(parsedRoute, origin, destination);
+    // }
 
     // Add procedure suggestions
     SidStarParser::AddSugggestedProcedures(
