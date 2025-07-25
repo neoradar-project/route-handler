@@ -697,17 +697,14 @@ namespace RouteParser
                     return std::nullopt;
                 }
 
-                std::multimap<double, Waypoint> waypointsByDistance;
-                for (const auto &waypoint : waypoints)
-                {
-                    double distance = reference->getPosition().distanceTo(waypoint.getPosition());
-                    waypointsByDistance.insert({distance, waypoint});
-                }
+                auto closest = std::min_element(waypoints.begin(), waypoints.end(),
+                                [&reference](const Waypoint &a, const Waypoint &b)
+                                {
+                                    return reference->getPosition().distanceTo(a.getPosition()) <
+                                            reference->getPosition().distanceTo(b.getPosition());
+                                });
 
-                if (!waypointsByDistance.empty())
-                {
-                    return waypointsByDistance.begin()->second;
-                }
+                return *closest;
             }
             catch (const std::exception &e)
             {
