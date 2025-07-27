@@ -5,6 +5,7 @@
 #include <memory>
 #include <unordered_map>
 #include <filesystem>
+#include <algorithm>
 #include "types/Waypoint.h"
 #include "erkir/geo/sphericalpoint.h"
 #include "Log.h"
@@ -13,6 +14,14 @@
 
 namespace RouteParser
 {
+    // Priority constants for different provider types
+    enum class ProviderPriority : int
+    {
+        NSE = 1,        // Highest priority
+        NAVDATA = 2,    // Medium priority
+        AIRWAY = 3      // Lowest priority
+    };
+
     class WaypointProvider
     {
     public:
@@ -22,6 +31,7 @@ namespace RouteParser
         virtual bool initialize() = 0;
         virtual bool isInitialized() const = 0;
         virtual std::string getName() const = 0;
+        virtual int getPriority() const = 0;
     };
 
     class NseWaypointProvider : public WaypointProvider {
@@ -29,20 +39,22 @@ namespace RouteParser
         std::unordered_map<std::string, std::vector<Waypoint>> waypointsByIdentifier;
         std::string name;
         bool initialized { false };
+        int priority;
 
     public:
         NseWaypointProvider(
-            const std::vector<Waypoint>& waypoints, const std::string& providerName)
-            : name(providerName)
+            const std::vector<Waypoint>& waypoints,
+            const std::string& providerName,
+            int providerPriority = static_cast<int>(ProviderPriority::NSE))
+            : name(providerName), priority(providerPriority)
         {
-
             // Organize waypoints by identifier for quick lookup
             for (const auto& waypoint : waypoints) {
                 waypointsByIdentifier[waypoint.getIdentifier()].push_back(waypoint);
             }
 
-            Log::info("[{}] Constructed with {} unique waypoint identifiers", name,
-                waypointsByIdentifier.size());
+            Log::info("[{}] Constructed with {} unique waypoint identifiers (Priority: {})",
+                name, waypointsByIdentifier.size(), priority);
         }
 
         std::vector<Waypoint> findWaypoint(const std::string& identifier) override
@@ -60,6 +72,8 @@ namespace RouteParser
 
             auto it = waypointsByIdentifier.find(identifier);
             if (it != waypointsByIdentifier.end()) {
+                Log::debug("[{}] Found {} waypoints for identifier '{}'",
+                    name, it->second.size(), identifier);
                 return it->second;
             }
 
@@ -69,7 +83,6 @@ namespace RouteParser
         std::optional<Waypoint> findClosestWaypoint(const std::string& identifier,
             const erkir::spherical::Point& reference) override
         {
-
             if (!isInitialized()) {
                 Log::error(
                     "[{}] Attempted to find closest waypoint with uninitialized provider",
@@ -99,14 +112,19 @@ namespace RouteParser
                 }
             }
 
+            if (closest.has_value()) {
+                Log::debug("[{}] Found closest waypoint '{}' at distance {:.2f}km",
+                    name, identifier, minDistance);
+            }
+
             return closest;
         }
 
         bool initialize() override
         {
             Log::info("[{}] Initializing NSE waypoint provider with {} unique waypoint "
-                      "identifiers",
-                name, waypointsByIdentifier.size());
+                      "identifiers (Priority: {})",
+                name, waypointsByIdentifier.size(), priority);
             initialized = true;
             return true;
         }
@@ -114,6 +132,8 @@ namespace RouteParser
         bool isInitialized() const override { return initialized; }
 
         std::string getName() const override { return name; }
+
+        int getPriority() const override { return priority; }
     };
 
     class BaseWaypointProvider : public WaypointProvider
@@ -123,6 +143,7 @@ namespace RouteParser
         std::string dbPath;
         std::string name;
         bool initialized{false};
+        int priority;
 
         bool isValidDbPath() const noexcept
         {
@@ -150,8 +171,8 @@ namespace RouteParser
         }
 
     public:
-        BaseWaypointProvider(const std::string &path, const std::string &providerName)
-            : dbPath(path), name(providerName) {}
+        BaseWaypointProvider(const std::string &path, const std::string &providerName, int providerPriority)
+            : dbPath(path), name(providerName), priority(providerPriority) {}
 
         bool isInitialized() const override
         {
@@ -161,6 +182,11 @@ namespace RouteParser
         std::string getName() const override
         {
             return name;
+        }
+
+        int getPriority() const override
+        {
+            return priority;
         }
 
         bool initialize() override
@@ -184,6 +210,8 @@ namespace RouteParser
                     return false;
                 }
 
+                Log::info("[{}] Successfully initialized database provider (Priority: {})",
+                    name, priority);
                 initialized = true;
                 return true;
             }
@@ -256,8 +284,10 @@ namespace RouteParser
         }
 
     public:
-        AirwayWaypointProvider(const std::string &path, const std::string &providerName)
-            : BaseWaypointProvider(path, providerName) {}
+        AirwayWaypointProvider(const std::string &path,
+                              const std::string &providerName,
+                              int providerPriority = static_cast<int>(ProviderPriority::AIRWAY))
+            : BaseWaypointProvider(path, providerName, providerPriority) {}
 
         std::vector<Waypoint> findWaypoint(const std::string &identifier) override
         {
@@ -287,6 +317,11 @@ namespace RouteParser
                     double lon = query.getColumn(2).isNull() ? 0.0 : query.getColumn(2).getDouble();
 
                     results.emplace_back(Utils::GetWaypointTypeByIdentifier(id), id, id,  erkir::spherical::Point(lat, lon));
+                }
+
+                if (!results.empty()) {
+                    Log::debug("[{}] Found {} waypoints for identifier '{}'",
+                        name, results.size(), identifier);
                 }
             }
             catch (const SQLite::Exception &e)
@@ -337,8 +372,12 @@ namespace RouteParser
                     std::string id = query.getColumn(0).getText();
                     double lat = query.getColumn(1).isNull() ? 0.0 : query.getColumn(1).getDouble();
                     double lon = query.getColumn(2).isNull() ? 0.0 : query.getColumn(2).getDouble();
+                    double distance = query.getColumn(3).getDouble();
 
-                    return Waypoint(Utils::GetWaypointTypeByIdentifier(id), id,id,  erkir::spherical::Point(lat, lon));
+                    Log::debug("[{}] Found closest waypoint '{}' at distance {:.2f}km",
+                        name, identifier, distance);
+
+                    return Waypoint(Utils::GetWaypointTypeByIdentifier(id), id, id,  erkir::spherical::Point(lat, lon));
                 }
             }
             catch (const SQLite::Exception &e)
@@ -409,8 +448,10 @@ namespace RouteParser
         }
 
     public:
-        NavdataWaypointProvider(const std::string &path, const std::string &providerName)
-            : BaseWaypointProvider(path, providerName) {}
+        NavdataWaypointProvider(const std::string &path,
+                               const std::string &providerName,
+                               int providerPriority = static_cast<int>(ProviderPriority::NAVDATA))
+            : BaseWaypointProvider(path, providerName, providerPriority) {}
 
         std::vector<Waypoint> findWaypoint(const std::string &identifier) override
         {
@@ -443,8 +484,13 @@ namespace RouteParser
                     double lat = query.getColumn(3).isNull() ? 0.0 : query.getColumn(3).getDouble();
                     double lon = query.getColumn(4).isNull() ? 0.0 : query.getColumn(4).getDouble();
 
-                    results.emplace_back(Utils::GetWaypointTypeByTypeString(id), id,id,
+                    results.emplace_back(Utils::GetWaypointTypeByTypeString(id), id, id,
                                          erkir::spherical::Point(lat, lon), frequency * 1000);
+                }
+
+                if (!results.empty()) {
+                    Log::debug("[{}] Found {} waypoints for identifier '{}'",
+                        name, results.size(), identifier);
                 }
             }
             catch (const SQLite::Exception &e)
@@ -497,8 +543,12 @@ namespace RouteParser
                     int frequency = query.getColumn(2).isNull() ? 0 : query.getColumn(2).getInt();
                     double lat = query.getColumn(3).isNull() ? 0.0 : query.getColumn(3).getDouble();
                     double lon = query.getColumn(4).isNull() ? 0.0 : query.getColumn(4).getDouble();
+                    double distance = query.getColumn(5).getDouble();
 
-                    return Waypoint(Utils::GetWaypointTypeByTypeString(id), id,id,
+                    Log::debug("[{}] Found closest waypoint '{}' at distance {:.2f}km",
+                        name, identifier, distance);
+
+                    return Waypoint(Utils::GetWaypointTypeByTypeString(id), id, id,
                                     erkir::spherical::Point(lat, lon), frequency * 1000);
                 }
             }
@@ -523,6 +573,14 @@ namespace RouteParser
         bool useCache;
         bool initialized{false};
 
+        void sortProvidersByPriority()
+        {
+            std::sort(providers.begin(), providers.end(),
+                [](const std::unique_ptr<WaypointProvider>& a, const std::unique_ptr<WaypointProvider>& b) {
+                    return a->getPriority() < b->getPriority(); // Lower priority number = higher priority
+                });
+        }
+
     public:
         WaypointNetwork(bool enableCache = true) : useCache(enableCache) {}
 
@@ -543,8 +601,13 @@ namespace RouteParser
             {
                 if (provider->initialize())
                 {
-                    Log::info("Successfully initialized waypoint provider: {}", provider->getName());
+                    Log::info("Successfully initialized waypoint provider: {} (Priority: {})",
+                        provider->getName(), provider->getPriority());
                     providers.push_back(std::move(provider));
+
+                    // Sort providers by priority after adding
+                    sortProvidersByPriority();
+
                     initialized = true;
                     return true;
                 }
@@ -562,11 +625,21 @@ namespace RouteParser
             }
         }
 
+        void printProviderOrder() const
+        {
+            Log::info("Waypoint provider search order:");
+            for (size_t i = 0; i < providers.size(); ++i) {
+                Log::info("  {}. {} (Priority: {})", i + 1,
+                    providers[i]->getName(), providers[i]->getPriority());
+            }
+        }
+
         void initialCache(std::unordered_multimap<std::string, Waypoint> initialCache)
         {
             try
             {
                 cache = std::move(initialCache);
+                Log::info("Cache initialized with {} entries", cache.size());
             }
             catch (const std::exception &e)
             {
@@ -591,6 +664,7 @@ namespace RouteParser
 
             try
             {
+                // Check cache first if enabled
                 if (useCache)
                 {
                     auto range = cache.equal_range(identifier);
@@ -601,10 +675,12 @@ namespace RouteParser
                         {
                             results.push_back(it->second);
                         }
+                        Log::debug("Found {} waypoints for '{}' in cache", results.size(), identifier);
                         return results;
                     }
                 }
 
+                // Search providers in priority order (already sorted)
                 for (const auto &provider : providers)
                 {
                     if (!provider->isInitialized())
@@ -616,6 +692,10 @@ namespace RouteParser
                     auto providerResults = provider->findWaypoint(identifier);
                     if (!providerResults.empty())
                     {
+                        Log::debug("Provider '{}' found {} waypoints for '{}'",
+                            provider->getName(), providerResults.size(), identifier);
+
+                        // Cache results if caching is enabled
                         if (useCache)
                         {
                             for (const auto &waypoint : providerResults)
@@ -626,6 +706,8 @@ namespace RouteParser
                         return providerResults;
                     }
                 }
+
+                Log::debug("No waypoints found for identifier '{}'", identifier);
             }
             catch (const std::exception &e)
             {
@@ -758,11 +840,28 @@ namespace RouteParser
             try
             {
                 cache.clear();
+                Log::info("Cache cleared");
             }
             catch (const std::exception &e)
             {
                 Log::error("Error clearing cache: {}", e.what());
             }
+        }
+
+        // Get a list of all provider names in priority order
+        std::vector<std::string> getProviderOrder() const
+        {
+            std::vector<std::string> order;
+            for (const auto& provider : providers) {
+                order.push_back(provider->getName());
+            }
+            return order;
+        }
+
+        // Get provider count
+        size_t getProviderCount() const
+        {
+            return providers.size();
         }
     };
 }
